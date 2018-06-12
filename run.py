@@ -3,7 +3,7 @@ import requests
 import json
 import time
 from secret import *
-
+RESULTS_PP = 40
 rand = N.random.RandomState(1)
 options = {
     "rgbd": 0,
@@ -77,20 +77,20 @@ def process_results(req, results):
 
 def fetch_results(results, image_ids=None, search_id=None, pg_num=None):
     if image_ids:
-        values = {'user': USER, 'token': TOKEN, 'results_per_page': 100, 'image_boxes': json.dumps(image_ids)}
+        values = {'user': USER, 'token': TOKEN, 'results_per_page': RESULTS_PP, 'image_boxes': json.dumps(image_ids)}
 
         apitime = time.time()
         r = requests.post(API_SEARCH_URL, data=values)
-        # print "query first time : ", time.time() - apitime
+        print "query first time - {0:.2f}s ".format(time.time() - apitime)
 
         search_id = json.loads(r.content)['tmv']['search_id']
         found, vals = process_results(r, results)
     else:
-        values = {'user': USER, 'token': TOKEN, 'search_id': search_id, 'page': pg_num, 'results_per_page': 100}
+        values = {'user': USER, 'token': TOKEN, 'search_id': search_id, 'page': pg_num, 'results_per_page': RESULTS_PP}
 
         apitime = time.time()
         r = requests.post(API_SEARCH_URL, data=values)
-        # print "query subsq time : ", time.time() - apitime
+        print "query subsq time - {0:.2f}s ".format(time.time() - apitime)
 
         found, vals = process_results(r, results)
 
@@ -148,13 +148,13 @@ if __name__ == '__main__':
 
         model_start_time = time.time()
         test_single_image(model, ipath, opath)
-        # print "fwd pass : ", time.time() - model_start_time
+        print "fwd pass - {0:.2f}s ".format(time.time() - model_start_time)
 
-        print "processing photo",
+        print "processing photo"
         query_api(image_ids=file_ids[0])
 
-        print "processing sktch",
+        print "processing sktch"
         query_api(image_ids=file_ids[1])
 
-        print "processing tgthr",
+        print "processing tgthr"
         query_api(image_ids=file_ids)
