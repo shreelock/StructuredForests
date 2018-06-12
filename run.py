@@ -4,6 +4,7 @@ import json
 import time
 from secret import *
 RESULTS_PP = 40
+NEXTP_RES = 500
 rand = N.random.RandomState(1)
 options = {
     "rgbd": 0,
@@ -81,16 +82,16 @@ def fetch_results(results, image_ids=None, search_id=None, pg_num=None):
 
         apitime = time.time()
         r = requests.post(API_SEARCH_URL, data=values)
-        print "query first time - {0:.2f}s ".format(time.time() - apitime)
+        #print "query first time - {0:.2f}s ".format(time.time() - apitime)
 
         search_id = json.loads(r.content)['tmv']['search_id']
         found, vals = process_results(r, results)
     else:
-        values = {'user': USER, 'token': TOKEN, 'search_id': search_id, 'page': pg_num, 'results_per_page': RESULTS_PP}
+        values = {'user': USER, 'token': TOKEN, 'search_id': search_id, 'page': pg_num, 'results_per_page': NEXTP_RES}
 
         apitime = time.time()
         r = requests.post(API_SEARCH_URL, data=values)
-        print "query subsq time - {0:.2f}s ".format(time.time() - apitime)
+        #print "query subsq time - {0:.2f}s ".format(time.time() - apitime)
 
         found, vals = process_results(r, results)
 
@@ -108,10 +109,9 @@ def query_api(image_ids):
             pg += 1
 
     results_map[file_name] = results
-    if found:
-        print results
-    else:
-        print results, "search incomplete"
+    if found : print results
+    else : print results, "search incomplete"
+    return results
 
 
 def get_file_ids(file_list):
@@ -148,13 +148,22 @@ if __name__ == '__main__':
 
         model_start_time = time.time()
         test_single_image(model, ipath, opath)
-        print "fwd pass - {0:.2f}s ".format(time.time() - model_start_time)
+        #print "fwd pass - {0:.2f}s ".format(time.time() - model_start_time)
 
-        print "processing photo"
-        query_api(image_ids=file_ids[0])
+        #print "processing photo"
+        photo_result = query_api(image_ids=file_ids[0])
 
-        print "processing sktch"
-        query_api(image_ids=file_ids[1])
+        #print "processing sktch"
+        sktch_result = query_api(image_ids=file_ids[1])
 
-        print "processing tgthr"
-        query_api(image_ids=file_ids)
+        #print "processing tgthr"
+        tgthr_result = query_api(image_ids=file_ids)
+
+        with open('results.txt', 'a') as f:
+            f.write("Processing {}\n".format(file_name))
+            f.write("photo : {}\n".format(photo_result))
+            f.write("sktch : {}\n".format(sktch_result))
+            f.write("tgthr : {}\n".format(tgthr_result))
+
+
+
