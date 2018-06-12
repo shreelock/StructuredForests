@@ -5,7 +5,7 @@
 *******************************************************************************/
 
 #include <cstring>
-#include <cstdint>
+#include <stdint.h>
 #include <cmath>
 #include <iostream>
 using namespace std;

@@ -492,20 +492,83 @@ def bsds500_test(model, input_root, output_root):
         os.makedirs(output_root)
 
     image_dir = os.path.join(input_root, "BSDS500", "data", "images", "test")
-    file_names = filter(lambda name: name[-3:] == "jpg", os.listdir(image_dir))
+    file_names = filter(lambda name: name[-3:] == "jpg" or name[-3:] == "png", os.listdir(image_dir))
     n_image = len(file_names)
 
     for i, file_name in enumerate(file_names):
-        img = img_as_float(imread(os.path.join(image_dir, file_name)))
+        img = imread(os.path.join(image_dir, file_name))[:,:,:3]
 
-        edge = img_as_ubyte(model.predict(img))
+        img = cv2.medianBlur(img, ksize=5)
+        # cv2.imshow("1", img)
+        # cv2.waitKey(11)
 
-        imsave(os.path.join(output_root, file_name[:-3] + "png"), edge)
+        # CLAHE
+        # convert to YUV, equalise the V plane, turn back.
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        img_yuv = cv2.cvtColor(img, cv2.COLOR_BGR2YUV)
+        img_yuv[:, :, 0] = clahe.apply(img_yuv[:, :, 0])
+        img_clahe = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR)
+        # cv2.imshow("1", img_clahe)
+        # cv2.waitKey(11)
+
+        # prediction and stuff
+        img = img_as_float(img_clahe)
+        edge = model.predict(img)
+        edge = img_as_ubyte(edge)
+        # cv2.imshow("1", edge)
+        # cv2.waitKey(11)
+
+        kernel = N.ones((2, 2), N.uint8)
+        edge = cv2.dilate(edge, kernel, iterations=1)
+        # cv2.imshow("1", edge)
+        # cv2.waitKey(11)
+
+        edge = 255 - edge
+        # cv2.imshow("1", edge)
+        # cv2.waitKey(11)
+
+        imsave(os.path.join(output_root, "proc_"+ file_name[:-3] + "png"), edge)
 
         sys.stdout.write("Processing Image %d/%d\r" % (i + 1, n_image))
         sys.stdout.flush()
     print
 
+def test_single_image(model, image_ip, image_op):
+    from skimage import img_as_float, img_as_ubyte
+    from skimage.io import imread, imsave
+
+    img = imread(image_ip)[:, :, :3]
+
+    img = cv2.medianBlur(img, ksize=5)
+    # cv2.imshow("1", img)
+    # cv2.waitKey(11)
+
+    # CLAHE
+    # convert to YUV, equalise the V plane, turn back.
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    img_yuv = cv2.cvtColor(img, cv2.COLOR_BGR2YUV)
+    img_yuv[:, :, 0] = clahe.apply(img_yuv[:, :, 0])
+    img_clahe = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR)
+    # cv2.imshow("1", img_clahe)
+    # cv2.waitKey(11)
+
+    # prediction and stuff
+    img = img_as_float(img_clahe)
+    edge = model.predict(img)
+    edge = img_as_ubyte(edge)
+    # cv2.imshow("1", edge)
+    # cv2.waitKey(11)
+
+    kernel = N.ones((2, 2), N.uint8)
+    edge = cv2.dilate(edge, kernel, iterations=1)
+    # cv2.imshow("1", edge)
+    # cv2.waitKey(11)
+
+    edge = 255 - edge
+    # cv2.imshow("1", edge)
+    # cv2.waitKey(11)
+
+    imsave(image_op, edge)
 
 if __name__ == "__main__":
     rand = N.random.RandomState(1)
