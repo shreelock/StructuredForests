@@ -3,9 +3,9 @@ import requests
 import json
 import time
 from secret import *
-RESULTS_PP = 40
-NEXTP_RES = 500
-rand = N.random.RandomState(1)
+RESULTS_PP = 50
+TOT_PAGES = 10
+rand = N.random.RandomState(45)
 options = {
     "rgbd": 0,
     "shrink": 2,
@@ -36,15 +36,15 @@ options = {
     "nms": True,
 }
 true_design_ids = {
-    "1.jpg" : 'D0555382|000841671_0004',
-    "2.jpg" : 'D0587478|000841671_0003',
-    "3.jpg" : 'D0520772|000283940_0009',
-    "4.jpg" : 'D0526804|000283940_0011',
-    "5.jpg" : 'D0508615|000283940_0012',
-    "6.jpg" : 'D0508790|000283940_0013',
-    "7.jpg" : 'D0508789|000283940_0014',
-    "8.jpg" : 'D0520773|000283940_0017',
-    "9.jpg" : 'D0551873|000374038_0001',
+    "1.jpg": 'D0555382|000841671_0004',
+    "2.jpg": 'D0587478|000841671_0003',
+    "3.jpg": 'D0520772|000283940_0009',
+    "4.jpg": 'D0526804|000283940_0011',
+    "5.jpg": 'D0508615|000283940_0012',
+    "6.jpg": 'D0508790|000283940_0013',
+    "7.jpg": 'D0508789|000283940_0014',
+    "8.jpg": 'D0520773|000283940_0017',
+    "9.jpg": 'D0551873|000374038_0001',
     "10.jpg": 'D0541074|000374038_0002',
     "11.jpg": 'D0541546|000374038_0004',
     "12.jpg": 'D0533368|000374038_0005',
@@ -57,7 +57,6 @@ true_design_ids = {
     "19.jpg": 'D0596414|000841671_0040'
 }
 
-
 def process_results(req, results):
     found = False
     if req.status_code == 200:
@@ -67,9 +66,9 @@ def process_results(req, results):
             id = item['tm_id']
             rank = item['rank']
             score = item['similarity']
-            dataset = item['dataset']
+            dataset = item['dataset'].encode('ascii')
             if id in target:
-                results[dataset] = (rank, score)
+                results[dataset] = (rank, "{0:.5f}".format(score))
                 if len(results) == 2:
                     found = True
                     break
@@ -82,16 +81,16 @@ def fetch_results(results, image_ids=None, search_id=None, pg_num=None):
 
         apitime = time.time()
         r = requests.post(API_SEARCH_URL, data=values)
-        #print "query first time - {0:.2f}s ".format(time.time() - apitime)
+        # print "query first time - {0:.2f}s ".format(time.time() - apitime)
 
         search_id = json.loads(r.content)['tmv']['search_id']
         found, vals = process_results(r, results)
     else:
-        values = {'user': USER, 'token': TOKEN, 'search_id': search_id, 'page': pg_num, 'results_per_page': NEXTP_RES}
+        values = {'user': USER, 'token': TOKEN, 'search_id': search_id, 'page': pg_num, 'results_per_page': RESULTS_PP}
 
         apitime = time.time()
         r = requests.post(API_SEARCH_URL, data=values)
-        #print "query subsq time - {0:.2f}s ".format(time.time() - apitime)
+        # print "query subsq time - {0:.2f}s ".format(time.time() - apitime)
 
         found, vals = process_results(r, results)
 
@@ -104,13 +103,13 @@ def query_api(image_ids):
 
     if not found:
         pg = 1
-        while not found and pg < 6:
+        while not found and pg < TOT_PAGES:
             found, _, results = fetch_results(results, search_id=search_id, pg_num=pg)
             pg += 1
 
     results_map[file_name] = results
     if found : print results
-    else : print results, "search incomplete"
+    else : print results, "not found in {} results".format(TOT_PAGES * RESULTS_PP)
     return results
 
 
@@ -121,6 +120,16 @@ def get_file_ids(file_list):
         resp = json.loads(r.content)
         file_ids.append({"image_id": resp['image_id']})
     return file_ids
+
+
+def fill_gaps(items):
+    for item in items:
+        if 'USD' not in item:
+            item['USD'] = (RESULTS_PP * TOT_PAGES, "0.00000")
+
+        if 'EUD' not in item:
+            item['EUD'] = (RESULTS_PP * TOT_PAGES, "0.00000")
+    return items
 
 
 if __name__ == '__main__':
@@ -134,7 +143,7 @@ if __name__ == '__main__':
     file_names = filter(lambda name: name[-3:] == "jpg" or name[-3:] == "png", os.listdir(image_dir))
 
     results_map = {}
-    for file_name in file_names:
+    for file_name in sorted(file_names):
         print "processing {}".format(file_name)
         target = true_design_ids[file_name]
 
@@ -148,18 +157,21 @@ if __name__ == '__main__':
 
         model_start_time = time.time()
         test_single_image(model, ipath, opath)
-        #print "fwd pass - {0:.2f}s ".format(time.time() - model_start_time)
+        # print "fwd pass - {0:.2f}s ".format(time.time() - model_start_time)
 
-        #print "processing photo"
+        # print "processing photo"
         photo_result = query_api(image_ids=file_ids[0])
 
-        #print "processing sktch"
+        # print "processing sktch"
         sktch_result = query_api(image_ids=file_ids[1])
 
-        #print "processing tgthr"
+        # print "processing tgthr"
         tgthr_result = query_api(image_ids=file_ids)
 
-        with open('results.txt', 'a') as f:
+        [photo_result, sktch_result, tgthr_result] = fill_gaps([photo_result, sktch_result, tgthr_result])
+
+        op_file_path = os.path.join(output_root, "results_2.txt")
+        with open(op_file_path, 'a') as f:
             f.write("Processing {}\n".format(file_name))
             f.write("photo : {}\n".format(photo_result))
             f.write("sktch : {}\n".format(sktch_result))
