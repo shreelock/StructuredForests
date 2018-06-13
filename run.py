@@ -149,16 +149,16 @@ if __name__ == '__main__':
         target = true_design_ids[file_name]
 
         ipath = os.path.join(image_dir, file_name)
-        i_file = {'file': open(ipath, 'rb')}
-
         opath = os.path.join(output_root, file_name[:-4] + "-proc.png")
-        o_file = {'file': open(opath, 'rb')}
-
-        file_ids = get_file_ids(file_list=[i_file, o_file])
 
         model_start_time = time.time()
         test_single_image(model, ipath, opath)
         print "fwd pass - {0:.2f}s ".format(time.time() - model_start_time)
+
+        i_file = {'file': open(ipath, 'rb')}
+        o_file = {'file': open(opath, 'rb')}
+        file_ids = get_file_ids(file_list=[i_file, o_file])
+
 
         print "processing photo"
         photo_result = query_api(image_ids=file_ids[0])

@@ -2,7 +2,8 @@
 .DS_Store
 results/
 .gitignore
-
+model/data/
+model/trees/
 # personal folders
 toy/
 BSR/
