@@ -5,7 +5,7 @@ import time
 from secret import *
 RESULTS_PP = 50
 TOT_PAGES = 10
-rand = N.random.RandomState(45)
+rand = N.random.RandomState(1)
 options = {
     "rgbd": 0,
     "shrink": 2,
@@ -81,7 +81,7 @@ def fetch_results(results, image_ids=None, search_id=None, pg_num=None):
 
         apitime = time.time()
         r = requests.post(API_SEARCH_URL, data=values)
-        # print "query first time - {0:.2f}s ".format(time.time() - apitime)
+        print "query first time - {0:.2f}s ".format(time.time() - apitime)
 
         search_id = json.loads(r.content)['tmv']['search_id']
         found, vals = process_results(r, results)
@@ -90,7 +90,7 @@ def fetch_results(results, image_ids=None, search_id=None, pg_num=None):
 
         apitime = time.time()
         r = requests.post(API_SEARCH_URL, data=values)
-        # print "query subsq time - {0:.2f}s ".format(time.time() - apitime)
+        print "query subsq time - {0:.2f}s ".format(time.time() - apitime)
 
         found, vals = process_results(r, results)
 
@@ -133,6 +133,7 @@ def fill_gaps(items):
 
 
 if __name__ == '__main__':
+    op_file_name = sys.argv[1]
     input_root = "toy"
     output_root = "edges"
 
@@ -157,20 +158,20 @@ if __name__ == '__main__':
 
         model_start_time = time.time()
         test_single_image(model, ipath, opath)
-        # print "fwd pass - {0:.2f}s ".format(time.time() - model_start_time)
+        print "fwd pass - {0:.2f}s ".format(time.time() - model_start_time)
 
-        # print "processing photo"
+        print "processing photo"
         photo_result = query_api(image_ids=file_ids[0])
 
-        # print "processing sktch"
+        print "processing sktch"
         sktch_result = query_api(image_ids=file_ids[1])
 
-        # print "processing tgthr"
+        print "processing tgthr"
         tgthr_result = query_api(image_ids=file_ids)
 
         [photo_result, sktch_result, tgthr_result] = fill_gaps([photo_result, sktch_result, tgthr_result])
 
-        op_file_path = os.path.join(output_root, "results_2.txt")
+        op_file_path = os.path.join(output_root, op_file_name)
         with open(op_file_path, 'a') as f:
             f.write("Processing {}\n".format(file_name))
             f.write("photo : {}\n".format(photo_result))
