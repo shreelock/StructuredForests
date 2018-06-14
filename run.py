@@ -57,25 +57,26 @@ true_design_ids = {
     "19.jpg": 'D0596414|000841671_0040'
 }
 
-def process_results(req, results):
+def process_results(req, results, db_rank):
     found = False
     if req.status_code == 200:
         resp = json.loads(req.content)
         design_results = resp['tmv']['design_results']
         for item in design_results:
             id = item['tm_id']
-            rank = item['rank']
+            cumu_rank = item['rank']
             score = item['similarity']
             dataset = item['dataset'].encode('ascii')
+            db_rank[dataset] += 1
             if id in target:
-                results[dataset] = (rank, "{0:.5f}".format(score))
+                results[dataset] = (db_rank[dataset], cumu_rank, "{0:.5f}".format(score))
                 if len(results) == 2:
                     found = True
                     break
-    return found, results
+    return found, results, db_rank
 
 
-def fetch_results(results, image_ids=None, search_id=None, pg_num=None):
+def fetch_results(results, db_count, image_ids=None, search_id=None, pg_num=None):
     if image_ids:
         values = {'user': USER, 'token': TOKEN, 'results_per_page': RESULTS_PP, 'image_boxes': json.dumps(image_ids)}
 
@@ -84,7 +85,7 @@ def fetch_results(results, image_ids=None, search_id=None, pg_num=None):
         print "query first time - {0:.2f}s ".format(time.time() - apitime)
 
         search_id = json.loads(r.content)['tmv']['search_id']
-        found, vals = process_results(r, results)
+        found, vals, db_count = process_results(r, results, db_count)
     else:
         values = {'user': USER, 'token': TOKEN, 'search_id': search_id, 'page': pg_num, 'results_per_page': RESULTS_PP}
 
@@ -92,19 +93,19 @@ def fetch_results(results, image_ids=None, search_id=None, pg_num=None):
         r = requests.post(API_SEARCH_URL, data=values)
         print "query subsq time - {0:.2f}s ".format(time.time() - apitime)
 
-        found, vals = process_results(r, results)
+        found, vals, db_count = process_results(r, results, db_count)
 
-    return found, search_id, vals
+    return found, search_id, vals, db_count
 
 
 def query_api(image_ids):
     results = {}
-    found, search_id, results = fetch_results(results, image_ids=image_ids)
+    found, search_id, results, db_count = fetch_results(results, db_count = {'USD':0, 'EUD':0}, image_ids=image_ids)
 
     if not found:
         pg = 1
         while not found and pg < TOT_PAGES:
-            found, _, results = fetch_results(results, search_id=search_id, pg_num=pg)
+            found, _, results, db_count = fetch_results(results, db_count=db_count, search_id=search_id, pg_num=pg)
             pg += 1
 
     results_map[file_name] = results
@@ -125,10 +126,10 @@ def get_file_ids(file_list):
 def fill_gaps(items):
     for item in items:
         if 'USD' not in item:
-            item['USD'] = (RESULTS_PP * TOT_PAGES, "0.00000")
+            item['USD'] = (RESULTS_PP * TOT_PAGES, RESULTS_PP * TOT_PAGES, "0.00000")
 
         if 'EUD' not in item:
-            item['EUD'] = (RESULTS_PP * TOT_PAGES, "0.00000")
+            item['EUD'] = (RESULTS_PP * TOT_PAGES, RESULTS_PP * TOT_PAGES, "0.00000")
     return items
 
 
