@@ -147,7 +147,6 @@ if __name__ == '__main__':
     results_map = {}
     for file_name in sorted(file_names):
         print "processing {}".format(file_name)
-        target = true_design_ids[file_name]
 
         ipath = os.path.join(image_dir, file_name)
         opath = os.path.join(output_root, file_name[:-4] + "-proc.png")
@@ -156,6 +155,7 @@ if __name__ == '__main__':
         test_single_image(model, ipath, opath)
         print "fwd pass - {0:.2f}s ".format(time.time() - model_start_time)
 
+        target = true_design_ids[file_name]
         i_file = {'file': open(ipath, 'rb')}
         o_file = {'file': open(opath, 'rb')}
         file_ids = get_file_ids(file_list=[i_file, o_file])
