@@ -6,6 +6,8 @@ from secret import *
 from PIL import Image, ImageDraw
 import numpy as np
 import cv2
+import pickle
+import matplotlib.pyplot as plt
 
 RESULTS_PP = 50
 TOT_PAGES = 10
@@ -157,64 +159,139 @@ def get_object_polygon(file_path):
     return ppoly
 
 
-def process(file_path):
-    im = cv2.imread(file_path)
-    poly = get_object_polygon(file_path)
-
-    mask = Image.new('L', (im.shape[1], im.shape[0]), 0)
+def cutfrompoly(poly, img=None, img_path=None):
+    if img is None:
+        img = cv2.imread(img_path)
+    mask = Image.new('L', (img.shape[1], img.shape[0]), 0)
     ImageDraw.Draw(mask).polygon(poly, outline=1, fill=1)
     mask = np.array(mask)
 
     idxs = mask == 0
-    im[idxs] = [255, 255, 255]
-    cv2.imwrite("film.png", mask)
-    cv2.imwrite("filw.png", im)
-    print "done"
+    if len(img.shape) == 3:
+        img[idxs] = [255, 255, 255]
+    else:
+        img[idxs] = 255
+    return img
+
+
+def plot_results(results_pickle):
+    with open(results_pickle, 'rb') as file:
+        full_res = pickle.load(file)
+
+    print full_res
+    rng = np.add(range(len(full_res)), 1)
+    images_count = len(full_res)
+    metric_count = len(full_res.values()[0])
+
+    us_list = np.zeros((metric_count, images_count), np.uint8)
+    eu_list = np.zeros((metric_count, images_count), np.uint8)
+
+    for i, (fname, fres) in enumerate(full_res.items()):
+        for idx, val in enumerate(fres):
+            usval = fres[idx]['USD'][0]
+            euval = fres[idx]['EUD'][0]
+
+            us_list[idx][i] = 150 if usval == 500 else usval
+            eu_list[idx][i] = 150 if euval == 500 else euval
+
+    for i, usli in enumerate(us_list):
+        plt.plot(rng, usli, color=np.random.rand(3, ), marker='o', linestyle='solid', linewidth=1, markersize=3)
+
+    plt.xticks(np.arange(min(rng), max(rng) + 1, 1.0))
+    plt.legend(["orig photo",
+                "sketc_res",
+                "cut_im_sketc_res",
+                "im_sketc_cut_res",
+                "all_together_res",
+                "im_im_sk_res",
+                "im_cut_im_sk_res",
+                "im_im_sk_cut_res"
+                ])
+    plt.show()
+    pass
 
 
 if __name__ == '__main__':
     op_file_name = sys.argv[1]
+    op_pickle_file = sys.argv[1] + ".pkl"
     input_root = "toy"
     output_root = "edges"
-
-    model = StructuredForests(options, rand=rand)
-    model.train(bsds500_train(input_root))
 
     image_dir = os.path.join(input_root, "BSDS500", "data", "images", "test")
     file_names = filter(lambda name: name[-3:] == "jpg" or name[-3:] == "png", os.listdir(image_dir))
 
     results_map = {}
-    for file_name in sorted(file_names):
-        print "processing {}".format(file_name)
+    results_pickle_obj = {}
+    op_pkl_path = os.path.join(output_root, op_pickle_file)
 
-        ipath = os.path.join(image_dir, file_name)
-        opath = os.path.join(output_root, file_name[:-4] + "-proc.png")
+    if 0 > 2:
+        model = StructuredForests(options, rand=rand)
+        model.train(bsds500_train(input_root))
 
-        process(ipath)
+        for file_name in sorted(file_names):
+            print "processing {}".format(file_name)
 
-        model_start_time = time.time()
-        test_single_image(model, ipath, opath)
-        print "fwd pass - {0:.2f}s ".format(time.time() - model_start_time)
+            ipath = os.path.join(image_dir, file_name)
+            img_skc = os.path.join(output_root, file_name[:-4] + "-proc.png")
+            cut_img_skc = os.path.join(output_root, file_name[:-4] + "-proc1.png")
+            img_skc_cut = os.path.join(output_root, file_name[:-4] + "-proc2.png")
 
-        target = true_design_ids[file_name]
-        i_file = {'file': open(ipath, 'rb')}
-        o_file = {'file': open(opath, 'rb')}
-        file_ids = get_file_ids(file_list=[i_file, o_file])
+            poly = get_object_polygon(ipath)
+            cut_img = cutfrompoly(poly, img_path=ipath)
 
-        print "processing photo"
-        photo_result = query_api(image_ids=file_ids[0])
+            # Original: Image, Sketch.
+            model_start_time = time.time()
+            test_single_image(model, img_path=ipath, opath=img_skc)
+            print "fwd pass - {0:.2f}s ".format(time.time() - model_start_time)
 
-        print "processing sktch"
-        sktch_result = query_api(image_ids=file_ids[1])
+            # Cut Image, Sketch
+            model_start_time = time.time()
+            test_single_image(model, img=cut_img, opath=cut_img_skc)
+            print "fwd pass - {0:.2f}s ".format(time.time() - model_start_time)
 
-        print "processing tgthr"
-        tgthr_result = query_api(image_ids=file_ids)
+            # Image, Cut Sketch
+            model_start_time = time.time()
+            edge = test_single_image(model, img_path=ipath)
+            print "fwd pass - {0:.2f}s ".format(time.time() - model_start_time)
+            cutedge = cutfrompoly(poly, img=edge)
+            cv2.imwrite(img_skc_cut, cutedge)
 
-        [photo_result, sktch_result, tgthr_result] = fill_gaps([photo_result, sktch_result, tgthr_result])
+            target = true_design_ids[file_name]
+            i_file = {'file': open(ipath, 'rb')}
+            img_skc_file = {'file': open(img_skc, 'rb')}
+            cut_img_skc_file = {'file': open(cut_img_skc, 'rb')}
+            img_skc_cut_file = {'file': open(img_skc_cut, 'rb')}
 
-        op_file_path = os.path.join(output_root, op_file_name)
-        with open(op_file_path, 'a') as f:
-            f.write("Processing {}\n".format(file_name))
-            f.write("photo : {}\n".format(photo_result))
-            f.write("sktch : {}\n".format(sktch_result))
-            f.write("tgthr : {}\n".format(tgthr_result))
+            file_ids = get_file_ids(file_list=[i_file, img_skc_file, cut_img_skc_file, img_skc_cut_file])
+
+            print "processing photo"
+            photo_result = query_api(image_ids=file_ids[0])
+
+            print "processing sktchs"
+            sktch_result = query_api(image_ids=file_ids[1])
+            cut_img_skc_result = query_api(image_ids=file_ids[2])
+            img_skc_cut_result = query_api(image_ids=file_ids[3])
+
+            print "processing tgthr"
+            img_img_skc_tg = query_api(image_ids=[file_ids[0], file_ids[1]])
+            img_cut_img_skc_tg = query_api(image_ids=[file_ids[0], file_ids[2]])
+            img_img_skc_cut_tg = query_api(image_ids=[file_ids[0], file_ids[3]])
+
+            results = [photo_result, sktch_result, cut_img_skc_result, img_skc_cut_result, img_img_skc_tg,
+                       img_cut_img_skc_tg, img_img_skc_cut_tg]
+            results = fill_gaps(results)
+
+            op_file_path = os.path.join(output_root, op_file_name)
+
+            results_pickle_obj[file_name] = results
+
+            with open(op_file_path, 'a') as f:
+                f.write("Processing {}\n".format(file_name))
+                for i, r in enumerate(results):
+                    f.write("case {} : {}\n".format(i, r))
+
+    if not os.path.isfile(op_pkl_path):
+        with open(op_pkl_path, 'wb') as fileobj:
+            pickle.dump(results_pickle_obj, fileobj)
+
+    plot_results(op_pkl_path)

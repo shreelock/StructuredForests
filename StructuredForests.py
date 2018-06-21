@@ -13,6 +13,7 @@ from RobustPCA import robust_pca
 from utils import conv_tri, gradient
 
 import pyximport
+
 pyximport.install(build_dir=".pyxbld",
                   setup_args={"include_dirs": N.get_include()})
 from _StructuredForests import predict_core, non_maximum_supr
@@ -144,7 +145,7 @@ class StructuredForests(BaseStructuredForests):
 
         dst = N.minimum(dst * alpha, 1.0)
         dst = conv_tri(dst, 1)[g_rad: src.shape[0] + g_rad,
-                               g_rad: src.shape[1] + g_rad]
+              g_rad: src.shape[1] + g_rad]
 
         if nms:
             dy, dx = N.gradient(conv_tri(dst, 4))
@@ -496,7 +497,7 @@ def bsds500_test(model, input_root, output_root):
     n_image = len(file_names)
 
     for i, file_name in enumerate(file_names):
-        img = imread(os.path.join(image_dir, file_name))[:,:,:3]
+        img = imread(os.path.join(image_dir, file_name))[:, :, :3]
 
         img = cv2.medianBlur(img, ksize=5)
         # cv2.imshow("1", img)
@@ -527,17 +528,23 @@ def bsds500_test(model, input_root, output_root):
         # cv2.imshow("1", edge)
         # cv2.waitKey(11)
 
-        imsave(os.path.join(output_root, "proc_"+ file_name[:-3] + "png"), edge)
+        imsave(os.path.join(output_root, "proc_" + file_name[:-3] + "png"), edge)
 
         sys.stdout.write("Processing Image %d/%d\r" % (i + 1, n_image))
         sys.stdout.flush()
     print
 
-def test_single_image(model, image_ip, image_op):
+
+def test_single_image(model, opath=None, img_path=None, img=None):
     from skimage import img_as_float, img_as_ubyte
     from skimage.io import imread, imsave
 
-    img = imread(image_ip)[:, :, :3]
+    if img is None and img_path is not None:
+        img = imread(img_path)[:, :, :3]
+
+    elif img_path is None and img is None:
+        print "Input input image, or path"
+        quit(0)
 
     img = cv2.medianBlur(img, ksize=5)
     # cv2.imshow("1", img)
@@ -568,7 +575,11 @@ def test_single_image(model, image_ip, image_op):
     # cv2.imshow("1", edge)
     # cv2.waitKey(11)
 
-    imsave(image_op, edge)
+    if opath is not None:
+        imsave(opath, edge)
+
+    return edge
+
 
 if __name__ == "__main__":
     rand = N.random.RandomState(1)
@@ -595,7 +606,7 @@ if __name__ == "__main__":
         "max_depth": 64,
         "split": "gini",
         "discretize": lambda lbls, n_class:
-            discretize(lbls, n_class, n_sample=256, rand=rand),
+        discretize(lbls, n_class, n_sample=256, rand=rand),
 
         "stride": 2,
         "sharpen": 2,
