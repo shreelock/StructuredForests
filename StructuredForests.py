@@ -4,7 +4,7 @@ import os
 import sys
 import tables
 import cv2
-import numpy as N
+import numpy as np
 from math import floor, ceil, log
 from scipy.ndimage.morphology import distance_transform_edt
 from BaseStructuredForests import BaseStructuredForests
@@ -15,13 +15,13 @@ from utils import conv_tri, gradient
 import pyximport
 
 pyximport.install(build_dir=".pyxbld",
-                  setup_args={"include_dirs": N.get_include()})
+                  setup_args={"include_dirs": np.get_include()})
 from _StructuredForests import predict_core, non_maximum_supr
 
 
 class StructuredForests(BaseStructuredForests):
     def __init__(self, options, model_dir="model/",
-                 rand=N.random.RandomState(123)):
+                 rand=np.random.RandomState(123)):
         """
         :param options:
             rgbd: 0 for RGB, 1 for RGB + depth
@@ -143,16 +143,16 @@ class StructuredForests(BaseStructuredForests):
         else:
             alpha = 1.65 * stride ** 2 / g_size ** 2 / n_tree_eval
 
-        dst = N.minimum(dst * alpha, 1.0)
+        dst = np.minimum(dst * alpha, 1.0)
         dst = conv_tri(dst, 1)[g_rad: src.shape[0] + g_rad,
               g_rad: src.shape[1] + g_rad]
 
         if nms:
-            dy, dx = N.gradient(conv_tri(dst, 4))
-            _, dxx = N.gradient(dx)
-            dyy, dxy = N.gradient(dy)
-            orientation = N.arctan2(dyy * N.sign(-dxy) + 1e-5, dxx)
-            orientation[orientation < 0] += N.pi
+            dy, dx = np.gradient(conv_tri(dst, 4))
+            _, dxx = np.gradient(dx)
+            dyy, dxy = np.gradient(dy)
+            orientation = np.arctan2(dyy * np.sign(-dxy) + 1e-5, dxx)
+            orientation[orientation < 0] += np.pi
 
             dst = non_maximum_supr(dst, orientation, 1, 5, 1.02)
 
@@ -186,7 +186,7 @@ class StructuredForests(BaseStructuredForests):
         g_size = self.options["g_size"]
         shrink = self.options["shrink"]
         p_rad, g_rad = p_size / 2, g_size / 2
-        n_ftr_dim = N.sum(self.get_ftr_dim())
+        n_ftr_dim = np.sum(self.get_ftr_dim())
         n_smp_ftr_dim = int(n_ftr_dim * fraction)
         rand = self.rand
 
@@ -197,13 +197,13 @@ class StructuredForests(BaseStructuredForests):
                 print "Found Data %d '%s', reusing..." % ((i + 1), data_file)
                 continue
 
-            ftrs = N.zeros((n_pos + n_neg, n_smp_ftr_dim), dtype=N.float32)
-            lbls = N.zeros((n_pos + n_neg, g_size, g_size), dtype=N.int32)
+            ftrs = np.zeros((n_pos + n_neg, n_smp_ftr_dim), dtype=np.float32)
+            lbls = np.zeros((n_pos + n_neg, g_size, g_size), dtype=np.int32)
             sids = rand.permutation(n_ftr_dim)[:n_smp_ftr_dim]
             total = 0
 
             for j, (img, bnds, segs) in enumerate(input_data):
-                mask = N.zeros(bnds[0].shape, dtype=bnds[0].dtype)
+                mask = np.zeros(bnds[0].shape, dtype=bnds[0].dtype)
                 mask[::shrink, ::shrink] = 1
                 mask[:p_rad] = mask[-p_rad:] = 0
                 mask[:, :p_rad] = mask[:, -p_rad:] = 0
@@ -230,14 +230,14 @@ class StructuredForests(BaseStructuredForests):
                     if n_loc == 0:
                         continue
 
-                    ftr = N.concatenate(self.get_features(img, loc), axis=1)
+                    ftr = np.concatenate(self.get_features(img, loc), axis=1)
                     assert ftr.shape[1] == n_ftr_dim
                     ftr = ftr[:, sids]
 
-                    lbl = N.zeros((ftr.shape[0], g_size, g_size), dtype=N.int8)
+                    lbl = np.zeros((ftr.shape[0], g_size, g_size), dtype=np.int8)
                     for m, (x, y) in enumerate(loc):
                         sub = segs[k][x - g_rad: x + g_rad, y - g_rad: y + g_rad]
-                        sub = N.unique(sub, return_inverse=True)[1]
+                        sub = np.unique(sub, return_inverse=True)[1]
                         lbl[m] = sub.reshape((g_size, g_size))
 
                     ftrs[total: total + n_loc] = ftr
@@ -251,7 +251,7 @@ class StructuredForests(BaseStructuredForests):
             with tables.open_file(data_path, "w", filters=self.comp_filt) as dfile:
                 dfile.create_carray("/", "ftrs", obj=ftrs[:total])
                 dfile.create_carray("/", "lbls", obj=lbls[:total])
-                dfile.create_carray("/", "sids", obj=sids.astype(N.int32))
+                dfile.create_carray("/", "sids", obj=sids.astype(np.int32))
             print "Saving %d samples to '%s'..." % (total, data_file)
 
     def train_tree(self):
@@ -337,10 +337,10 @@ class StructuredForests(BaseStructuredForests):
             max_n_node = max(max_n_node, trees[i]["fids"].shape[0])
 
         # merge all fields of all trees
-        thrs = N.zeros((n_tree, max_n_node), dtype=N.float64)
-        fids = N.zeros((n_tree, max_n_node), dtype=N.int32)
-        cids = N.zeros((n_tree, max_n_node), dtype=N.int32)
-        segs = N.zeros((n_tree, max_n_node, g_size, g_size), dtype=N.int32)
+        thrs = np.zeros((n_tree, max_n_node), dtype=np.float64)
+        fids = np.zeros((n_tree, max_n_node), dtype=np.int32)
+        cids = np.zeros((n_tree, max_n_node), dtype=np.int32)
+        segs = np.zeros((n_tree, max_n_node, g_size, g_size), dtype=np.int32)
         for i in xrange(n_tree):
             tree = trees[i]
             n_node = tree["fids"].shape[0]
@@ -350,7 +350,7 @@ class StructuredForests(BaseStructuredForests):
             segs[i, :n_node] = tree["segs"]
 
         # remove very small segments (<=5 pixels)
-        n_seg = N.max(segs.reshape((n_tree, max_n_node, g_size ** 2)), axis=2) + 1
+        n_seg = np.max(segs.reshape((n_tree, max_n_node, g_size ** 2)), axis=2) + 1
         for i in xrange(n_tree):
             for j in xrange(max_n_node):
                 m = n_seg[i, j]
@@ -362,40 +362,40 @@ class StructuredForests(BaseStructuredForests):
 
                 for k in xrange(m):
                     Sk = (S == k)
-                    if N.count_nonzero(Sk) > 5:
+                    if np.count_nonzero(Sk) > 5:
                         continue
 
-                    S[Sk] = N.median(S[conv_tri(Sk.astype(N.float64), 1) > 0])
+                    S[Sk] = np.median(S[conv_tri(Sk.astype(np.float64), 1) > 0])
                     remove = True
 
                 if remove:
-                    S = N.unique(S, return_inverse=True)[1]
+                    S = np.unique(S, return_inverse=True)[1]
                     segs[i, j] = S.reshape((g_size, g_size))
-                    n_seg[i, j] = N.max(S) + 1
+                    n_seg[i, j] = np.max(S) + 1
 
         # store compact representations of sparse binary edge patches
         n_bnd = self.options["sharpen"] + 1
         edge_pts = []
-        edge_bnds = N.zeros((n_tree, max_n_node, n_bnd), dtype=N.int32)
+        edge_bnds = np.zeros((n_tree, max_n_node, n_bnd), dtype=np.int32)
         for i in xrange(n_tree):
             for j in xrange(max_n_node):
                 if cids[i, j] != 0 or n_seg[i, j] <= 1:
                     continue
 
-                E = gradient(segs[i, j].astype(N.float64))[0] > 0.01
+                E = gradient(segs[i, j].astype(np.float64))[0] > 0.01
                 E0 = 0
 
                 for k in xrange(n_bnd):
-                    r, c = N.nonzero(E & (~ E0))
+                    r, c = np.nonzero(E & (~ E0))
                     edge_pts += [r[m] * g_size + c[m] for m in xrange(len(r))]
                     edge_bnds[i, j, k] = len(r)
 
                     E0 = E
-                    E = conv_tri(E.astype(N.float64), 1) > 0.01
+                    E = conv_tri(E.astype(np.float64), 1) > 0.01
 
         segs = segs.reshape((-1, segs.shape[-2], segs.shape[-1]))
-        edge_pts = N.asarray(edge_pts, dtype=N.int32)
-        edge_bnds = N.hstack(([0], N.cumsum(edge_bnds.flatten()))).astype(N.int32)
+        edge_pts = np.asarray(edge_pts, dtype=np.int32)
+        edge_bnds = np.hstack(([0], np.cumsum(edge_bnds.flatten()))).astype(np.int32)
 
         with tables.open_file(forest_path, "w", filters=self.comp_filt) as mfile:
             mfile.create_carray("/", "thrs", obj=thrs)
@@ -422,8 +422,8 @@ def discretize(segs, n_class, n_sample, rand):
     segs = segs.reshape((segs.shape[0], w ** 2))
 
     # compute all possible lookup inds for w x w patches
-    ids = N.arange(w ** 4, dtype=N.float64)
-    ids1 = N.floor(ids / w / w)
+    ids = np.arange(w ** 4, dtype=np.float64)
+    ids1 = np.floor(ids / w / w)
     ids2 = ids - ids1 * w * w
     kp = ids2 > ids1
     ids1 = ids1[kp]
@@ -433,30 +433,30 @@ def discretize(segs, n_class, n_sample, rand):
     n_sample = min(n_sample, ids1.shape[0])
     kp = rand.permutation(ids1.shape[0])[:n_sample]
     n = segs.shape[0]
-    ids1 = ids1[kp].astype(N.int32)
-    ids2 = ids2[kp].astype(N.int32)
+    ids1 = ids1[kp].astype(np.int32)
+    ids2 = ids2[kp].astype(np.int32)
 
-    zs = N.zeros((n, n_sample), dtype=N.float64)
+    zs = np.zeros((n, n_sample), dtype=np.float64)
     for i in xrange(n):
         zs[i] = (segs[i][ids1] == segs[i][ids2])
-    zs -= N.mean(zs, axis=0)
-    zs = zs[:, N.any(zs, axis=0)]
+    zs -= np.mean(zs, axis=0)
+    zs = zs[:, np.any(zs, axis=0)]
 
-    if N.count_nonzero(zs) == 0:
-        lbls = N.ones(n, dtype=N.int32)
+    if np.count_nonzero(zs) == 0:
+        lbls = np.ones(n, dtype=np.int32)
         segs = segs[0]
     else:
         # find most representative segs (closest to mean)
-        ind = N.argmin(N.sum(zs * zs, axis=1))
+        ind = np.argmin(np.sum(zs * zs, axis=1))
         segs = segs[ind]
 
         # discretize zs by discretizing pca dimensions
         d = min(5, n_sample, int(floor(log(n_class, 2))))
         zs = robust_pca(zs, d, rand=rand)[0]
-        lbls = N.zeros(n, dtype=N.int32)
+        lbls = np.zeros(n, dtype=np.int32)
         for i in xrange(d):
-            lbls += (zs[:, i] < 0).astype(N.int32) * 2 ** i
-        lbls = N.unique(lbls, return_inverse=True)[1].astype(N.int32)
+            lbls += (zs[:, i] < 0).astype(np.int32) * 2 ** i
+        lbls = np.unique(lbls, return_inverse=True)[1].astype(np.int32)
 
     return lbls, segs.reshape((-1, w, w))
 
@@ -519,7 +519,7 @@ def bsds500_test(model, input_root, output_root):
         # cv2.imshow("1", edge)
         # cv2.waitKey(11)
 
-        kernel = N.ones((2, 2), N.uint8)
+        kernel = np.ones((2, 2), np.uint8)
         edge = cv2.dilate(edge, kernel, iterations=1)
         # cv2.imshow("1", edge)
         # cv2.waitKey(11)
@@ -566,7 +566,7 @@ def test_single_image(model, opath=None, img_path=None, img=None):
     # cv2.imshow("1", edge)
     # cv2.waitKey(11)
 
-    kernel = N.ones((2, 2), N.uint8)
+    kernel = np.ones((2, 2), np.uint8)
     edge = cv2.dilate(edge, kernel, iterations=1)
     # cv2.imshow("1", edge)
     # cv2.waitKey(11)
@@ -582,7 +582,7 @@ def test_single_image(model, opath=None, img_path=None, img=None):
 
 
 if __name__ == "__main__":
-    rand = N.random.RandomState(1)
+    rand = np.random.RandomState(1)
 
     options = {
         "rgbd": 0,

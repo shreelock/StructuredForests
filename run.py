@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 RESULTS_PP = 50
 TOT_PAGES = 10
-rand = N.random.RandomState(1)
+rand = np.random.RandomState(1)
 options = {
     "rgbd": 0,
     "shrink": 2,
