@@ -3,6 +3,10 @@ import requests
 import json
 import time
 from secret import *
+from PIL import Image, ImageDraw
+import numpy as np
+import cv2
+
 RESULTS_PP = 50
 TOT_PAGES = 10
 rand = N.random.RandomState(1)
@@ -57,6 +61,7 @@ true_design_ids = {
     "19.jpg": 'D0596414|000841671_0040'
 }
 
+
 def process_results(req, results, db_rank):
     found = False
     if req.status_code == 200:
@@ -100,7 +105,7 @@ def fetch_results(results, db_count, image_ids=None, search_id=None, pg_num=None
 
 def query_api(image_ids):
     results = {}
-    found, search_id, results, db_count = fetch_results(results, db_count = {'USD':0, 'EUD':0}, image_ids=image_ids)
+    found, search_id, results, db_count = fetch_results(results, db_count={'USD': 0, 'EUD': 0}, image_ids=image_ids)
 
     if not found:
         pg = 1
@@ -109,8 +114,10 @@ def query_api(image_ids):
             pg += 1
 
     results_map[file_name] = results
-    if found : print results
-    else : print results, "not found in {} results".format(TOT_PAGES * RESULTS_PP)
+    if found:
+        print results
+    else:
+        print results, "not found in {} results".format(TOT_PAGES * RESULTS_PP)
     return results
 
 
@@ -133,6 +140,38 @@ def fill_gaps(items):
     return items
 
 
+def get_object_polygon(file_path):
+    f = {'file': open(file_path, 'rb')}
+    r = requests.post(url=API_SEGMENT_URL, files=f, data={'user': USER, 'token': TOKEN})
+    resp = json.loads(r.content)
+    segments = resp['segments']
+    poly = []
+    ppoly = []
+    for s in segments:
+        if s['segment_type'] == 'default_poly':
+            poly = s['polygon']
+            break
+    for pt in poly:
+        ppoly.append((pt[0], pt[1]))
+
+    return ppoly
+
+
+def process(file_path):
+    im = cv2.imread(file_path)
+    poly = get_object_polygon(file_path)
+
+    mask = Image.new('L', (im.shape[1], im.shape[0]), 0)
+    ImageDraw.Draw(mask).polygon(poly, outline=1, fill=1)
+    mask = np.array(mask)
+
+    idxs = mask == 0
+    im[idxs] = [255, 255, 255]
+    cv2.imwrite("film.png", mask)
+    cv2.imwrite("filw.png", im)
+    print "done"
+
+
 if __name__ == '__main__':
     op_file_name = sys.argv[1]
     input_root = "toy"
@@ -151,6 +190,8 @@ if __name__ == '__main__':
         ipath = os.path.join(image_dir, file_name)
         opath = os.path.join(output_root, file_name[:-4] + "-proc.png")
 
+        process(ipath)
+
         model_start_time = time.time()
         test_single_image(model, ipath, opath)
         print "fwd pass - {0:.2f}s ".format(time.time() - model_start_time)
@@ -159,7 +200,6 @@ if __name__ == '__main__':
         i_file = {'file': open(ipath, 'rb')}
         o_file = {'file': open(opath, 'rb')}
         file_ids = get_file_ids(file_list=[i_file, o_file])
-
 
         print "processing photo"
         photo_result = query_api(image_ids=file_ids[0])
@@ -178,6 +218,3 @@ if __name__ == '__main__':
             f.write("photo : {}\n".format(photo_result))
             f.write("sktch : {}\n".format(sktch_result))
             f.write("tgthr : {}\n".format(tgthr_result))
-
-
-
