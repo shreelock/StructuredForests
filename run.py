@@ -41,27 +41,6 @@ options = {
     "n_tree_eval": 4,
     "nms": True,
 }
-true_design_ids = {
-    "1.jpg": 'D0555382|000841671_0004',
-    "2.jpg": 'D0587478|000841671_0003',
-    "3.jpg": 'D0520772|000283940_0009',
-    "4.jpg": 'D0526804|000283940_0011',
-    "5.jpg": 'D0508615|000283940_0012',
-    "6.jpg": 'D0508790|000283940_0013',
-    "7.jpg": 'D0508789|000283940_0014',
-    "8.jpg": 'D0520773|000283940_0017',
-    "9.jpg": 'D0551873|000374038_0001',
-    "10.jpg": 'D0541074|000374038_0002',
-    "11.jpg": 'D0541546|000374038_0004',
-    "12.jpg": 'D0533368|000374038_0005',
-    "13.jpg": 'D0544247|000374038_0006',
-    "14.jpg": 'D0540061|000374038_0008',
-    "15.jpg": 'D0540063|000374038_0009',
-    "16.jpg": 'D0549482|000374038_0015',
-    "17.jpg": 'D0541072|000374038_0018',
-    "18.jpg": 'D0547087|000457643_0011',
-    "19.jpg": 'D0596414|000841671_0040'
-}
 
 
 def process_results(req, results, db_rank):
@@ -210,16 +189,16 @@ def plot_results(results_pickle):
                 "im_im_sk_cut_res"
                 ])
     plt.show()
-    with open("table-file-us.txt","wb") as tf:
-        r,c = us_list.shape
+    with open("table-file-us.txt", "wb") as tf:
+        r, c = us_list.shape
         for j in range(c):
             tf.write("{}\t".format(names[j]))
             for i in range(r):
                 tf.write("{}\t".format(us_list[i][j]))
             tf.write("\n")
 
-    with open("table-file-eu.txt","wb") as tf:
-        r,c = eu_list.shape
+    with open("table-file-eu.txt", "wb") as tf:
+        r, c = eu_list.shape
         for j in range(c):
             tf.write("{}\t".format(names[j]))
             for i in range(r):
@@ -241,7 +220,7 @@ if __name__ == '__main__':
     results_pickle_obj = {}
     op_pkl_path = os.path.join(output_root, op_pickle_file)
 
-    if 3 > 2: # Just a Switch.
+    if 3 > 2:  # Just a Switch.
         model = StructuredForests(options, rand=rand)
         model.train(bsds500_train(input_root))
 
@@ -273,7 +252,7 @@ if __name__ == '__main__':
             cutedge = cutfrompoly(poly, img=edge)
             cv2.imwrite(img_skc_cut, cutedge)
 
-            target = true_design_ids[file_name]
+            target = DESIGN_ID_MAPPING[file_name]
             i_file = {'file': open(ipath, 'rb')}
             img_skc_file = {'file': open(img_skc, 'rb')}
             cut_img_skc_file = {'file': open(cut_img_skc, 'rb')}
