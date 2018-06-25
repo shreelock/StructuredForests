@@ -185,8 +185,10 @@ def plot_results(results_pickle):
 
     us_list = np.zeros((metric_count, images_count), np.uint8)
     eu_list = np.zeros((metric_count, images_count), np.uint8)
+    names = [None] * images_count
 
     for i, (fname, fres) in enumerate(full_res.items()):
+        names[i] = fname
         for idx, val in enumerate(fres):
             usval = fres[idx]['USD'][0]
             euval = fres[idx]['EUD'][0]
@@ -208,6 +210,21 @@ def plot_results(results_pickle):
                 "im_im_sk_cut_res"
                 ])
     plt.show()
+    with open("table-file-us.txt","wb") as tf:
+        r,c = us_list.shape
+        for j in range(c):
+            tf.write("{}\t".format(names[j]))
+            for i in range(r):
+                tf.write("{}\t".format(us_list[i][j]))
+            tf.write("\n")
+
+    with open("table-file-eu.txt","wb") as tf:
+        r,c = eu_list.shape
+        for j in range(c):
+            tf.write("{}\t".format(names[j]))
+            for i in range(r):
+                tf.write("{}\t".format(eu_list[i][j]))
+            tf.write("\n")
     pass
 
 
@@ -224,7 +241,7 @@ if __name__ == '__main__':
     results_pickle_obj = {}
     op_pkl_path = os.path.join(output_root, op_pickle_file)
 
-    if 0 > 2:
+    if 3 > 2: # Just a Switch.
         model = StructuredForests(options, rand=rand)
         model.train(bsds500_train(input_root))
 
