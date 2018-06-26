@@ -181,11 +181,6 @@ def plot_results(results_pickle):
     plt.xticks(np.arange(min(rng), max(rng) + 1, 1.0))
     plt.legend(["orig photo",
                 "sketc_res",
-                "cut_im_sketc_res",
-                "im_sketc_cut_res",
-                "all_together_res",
-                "im_im_sk_res",
-                "im_cut_im_sk_res",
                 "im_im_sk_cut_res"
                 ])
     plt.show()
@@ -228,22 +223,9 @@ if __name__ == '__main__':
             print "processing {}".format(file_name)
 
             ipath = os.path.join(image_dir, file_name)
-            img_skc = os.path.join(output_root, file_name[:-4] + "-proc.png")
-            cut_img_skc = os.path.join(output_root, file_name[:-4] + "-proc1.png")
-            img_skc_cut = os.path.join(output_root, file_name[:-4] + "-proc2.png")
+            img_skc_cut = os.path.join(output_root, file_name[:-4] + "-proc.png")
 
             poly = get_object_polygon(ipath)
-            cut_img = cutfrompoly(poly, img_path=ipath)
-
-            # Original: Image, Sketch.
-            model_start_time = time.time()
-            test_single_image(model, img_path=ipath, opath=img_skc)
-            print "fwd pass - {0:.2f}s ".format(time.time() - model_start_time)
-
-            # Cut Image, Sketch
-            model_start_time = time.time()
-            test_single_image(model, img=cut_img, opath=cut_img_skc)
-            print "fwd pass - {0:.2f}s ".format(time.time() - model_start_time)
 
             # Image, Cut Sketch
             model_start_time = time.time()
@@ -254,27 +236,20 @@ if __name__ == '__main__':
 
             target = DESIGN_ID_MAPPING[file_name]
             i_file = {'file': open(ipath, 'rb')}
-            img_skc_file = {'file': open(img_skc, 'rb')}
-            cut_img_skc_file = {'file': open(cut_img_skc, 'rb')}
             img_skc_cut_file = {'file': open(img_skc_cut, 'rb')}
 
-            file_ids = get_file_ids(file_list=[i_file, img_skc_file, cut_img_skc_file, img_skc_cut_file])
+            file_ids = get_file_ids(file_list=[i_file, img_skc_cut_file])
 
             print "processing photo"
             photo_result = query_api(image_ids=file_ids[0])
 
             print "processing sktchs"
-            sktch_result = query_api(image_ids=file_ids[1])
-            cut_img_skc_result = query_api(image_ids=file_ids[2])
-            img_skc_cut_result = query_api(image_ids=file_ids[3])
+            img_skc_cut_result = query_api(image_ids=file_ids[1])
 
             print "processing tgthr"
-            img_img_skc_tg = query_api(image_ids=[file_ids[0], file_ids[1]])
-            img_cut_img_skc_tg = query_api(image_ids=[file_ids[0], file_ids[2]])
-            img_img_skc_cut_tg = query_api(image_ids=[file_ids[0], file_ids[3]])
+            img_img_skc_cut_tg = query_api(image_ids=[file_ids[0], file_ids[1]])
 
-            results = [photo_result, sktch_result, cut_img_skc_result, img_skc_cut_result, img_img_skc_tg,
-                       img_cut_img_skc_tg, img_img_skc_cut_tg]
+            results = [photo_result, img_skc_cut_result, img_img_skc_cut_tg]
             results = fill_gaps(results)
 
             op_file_path = os.path.join(output_root, op_file_name)
@@ -290,4 +265,4 @@ if __name__ == '__main__':
         with open(op_pkl_path, 'wb') as fileobj:
             pickle.dump(results_pickle_obj, fileobj)
 
-    plot_results(op_pkl_path)
+    # plot_results(op_pkl_path)
