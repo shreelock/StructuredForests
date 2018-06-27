@@ -540,7 +540,7 @@ def test_single_image(model, opath=None, img_path=None, img=None):
     from skimage.io import imread, imsave
 
     if img is None and img_path is not None:
-        img = imread(img_path)[:, :, :3]
+        img = cv2.imread(img_path, cv2.IMREAD_COLOR)[:, :, :3]
 
     elif img_path is None and img is None:
         print "Input input image, or path"

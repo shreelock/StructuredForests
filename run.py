@@ -205,61 +205,69 @@ def plot_results(results_pickle):
 if __name__ == '__main__':
     op_file_name = sys.argv[1]
     op_pickle_file = sys.argv[1] + ".pkl"
-    input_root = "toy"
-    output_root = "edges"
-
-    image_dir = os.path.join(input_root, "BSDS500", "data", "images", "test")
-    file_names = filter(lambda name: name[-3:] == "jpg" or name[-3:] == "png", os.listdir(image_dir))
+    train_images_root = "toy"
+    INPUT_ROOT = "/Users/sshn/shreelock/tmv/9/findPairs/selected-pairs"  # os.path.join(input_root, "BSDS500", "data", "images", "test")
 
     results_map = {}
     results_pickle_obj = {}
-    op_pkl_path = os.path.join(output_root, op_pickle_file)
+    op_pkl_path = os.path.join(INPUT_ROOT, op_pickle_file)
 
     if 3 > 2:  # Just a Switch.
         model = StructuredForests(options, rand=rand)
-        model.train(bsds500_train(input_root))
+        model.train(bsds500_train(train_images_root))
 
-        for file_name in sorted(file_names):
-            print "processing {}".format(file_name)
+        for designpair in sorted(os.listdir(INPUT_ROOT)):
+            if designpair[0] == '.': continue
+            # input folders
+            usid, euid = designpair.split(":")
+            us_folder = os.path.join(INPUT_ROOT, designpair, usid) # ground truths
+            eu_folder = os.path.join(INPUT_ROOT, designpair, euid) # sketches
 
-            ipath = os.path.join(image_dir, file_name)
-            img_skc_cut = os.path.join(output_root, file_name[:-4] + "-proc.png")
+            op_folder = os.path.join(INPUT_ROOT, designpair, "output")
+            if not os.path.exists(op_folder): os.makedirs(op_folder)
 
-            poly = get_object_polygon(ipath)
+            file_names = filter(lambda name: name[-3:] in "jpg|png", os.listdir(eu_folder))
+            for file_name in sorted(file_names):
+                print "processing {}".format(file_name)
 
-            # Image, Cut Sketch
-            model_start_time = time.time()
-            edge = test_single_image(model, img_path=ipath)
-            print "fwd pass - {0:.2f}s ".format(time.time() - model_start_time)
-            cutedge = cutfrompoly(poly, img=edge)
-            cv2.imwrite(img_skc_cut, cutedge)
+                ipath = os.path.join(eu_folder, file_name)
+                img_skc_cut = os.path.join(op_folder, file_name[:-4] + "-proc.png")
 
-            target = DESIGN_ID_MAPPING[file_name]
-            i_file = {'file': open(ipath, 'rb')}
-            img_skc_cut_file = {'file': open(img_skc_cut, 'rb')}
+                poly = get_object_polygon(ipath)
 
-            file_ids = get_file_ids(file_list=[i_file, img_skc_cut_file])
+                # Image, Cut Sketch
+                model_start_time = time.time()
+                edge = test_single_image(model, img_path=ipath)
+                print "fwd pass - {0:.2f}s ".format(time.time() - model_start_time)
+                cutedge = cutfrompoly(poly, img=edge)
+                cv2.imwrite(img_skc_cut, cutedge)
 
-            print "processing photo"
-            photo_result = query_api(image_ids=file_ids[0])
+                target = designpair
+                i_file = {'file': open(ipath, 'rb')}
+                img_skc_cut_file = {'file': open(img_skc_cut, 'rb')}
 
-            print "processing sktchs"
-            img_skc_cut_result = query_api(image_ids=file_ids[1])
+                file_ids = get_file_ids(file_list=[i_file, img_skc_cut_file])
 
-            print "processing tgthr"
-            img_img_skc_cut_tg = query_api(image_ids=[file_ids[0], file_ids[1]])
+                print "processing photo"
+                photo_result = query_api(image_ids=file_ids[0])
 
-            results = [photo_result, img_skc_cut_result, img_img_skc_cut_tg]
-            results = fill_gaps(results)
+                print "processing sktchs"
+                img_skc_cut_result = query_api(image_ids=file_ids[1])
 
-            op_file_path = os.path.join(output_root, op_file_name)
+                print "processing tgthr"
+                img_img_skc_cut_tg = query_api(image_ids=[file_ids[0], file_ids[1]])
 
-            results_pickle_obj[file_name] = results
+                results = [photo_result, img_skc_cut_result, img_img_skc_cut_tg]
+                results = fill_gaps(results)
 
-            with open(op_file_path, 'a') as f:
-                f.write("Processing {}\n".format(file_name))
-                for i, r in enumerate(results):
-                    f.write("case {} : {}\n".format(i, r))
+                op_file_path = os.path.join(INPUT_ROOT, op_file_name)
+
+                results_pickle_obj[file_name] = results
+
+                with open(op_file_path, 'a') as f:
+                    f.write("Processing {}\n".format(file_name))
+                    for i, r in enumerate(results):
+                        f.write("case {} : {}\n".format(i, r))
 
     if not os.path.isfile(op_pkl_path):
         with open(op_pkl_path, 'wb') as fileobj:
