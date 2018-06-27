@@ -93,8 +93,6 @@ def query_api(image_ids):
         while not found and pg < TOT_PAGES:
             found, _, results, db_count = fetch_results(results, db_count=db_count, search_id=search_id, pg_num=pg)
             pg += 1
-
-    results_map[file_name] = results
     if found:
         print results
     else:
@@ -202,13 +200,19 @@ def plot_results(results_pickle):
     pass
 
 
+def getfileobjs(parent, filenames):
+    objs = []
+    for fname in filenames:
+        objs.append({'file': open(os.path.join(parent, fname), 'rb')})
+    return objs
+
+
 if __name__ == '__main__':
     op_file_name = sys.argv[1]
     op_pickle_file = sys.argv[1] + ".pkl"
     train_images_root = "toy"
     INPUT_ROOT = "/Users/sshn/shreelock/tmv/9/findPairs/selected-pairs"  # os.path.join(input_root, "BSDS500", "data", "images", "test")
 
-    results_map = {}
     results_pickle_obj = {}
     op_pkl_path = os.path.join(INPUT_ROOT, op_pickle_file)
 
@@ -220,8 +224,8 @@ if __name__ == '__main__':
             if designpair[0] == '.': continue
             # input folders
             usid, euid = designpair.split(":")
-            us_folder = os.path.join(INPUT_ROOT, designpair, usid) # ground truths
-            eu_folder = os.path.join(INPUT_ROOT, designpair, euid) # sketches
+            us_folder = os.path.join(INPUT_ROOT, designpair, usid)  # ground truths
+            eu_folder = os.path.join(INPUT_ROOT, designpair, euid)  # sketches
 
             op_folder = os.path.join(INPUT_ROOT, designpair, "output")
             if not os.path.exists(op_folder): os.makedirs(op_folder)
@@ -241,33 +245,38 @@ if __name__ == '__main__':
                 print "fwd pass - {0:.2f}s ".format(time.time() - model_start_time)
                 cutedge = cutfrompoly(poly, img=edge)
                 cv2.imwrite(img_skc_cut, cutedge)
+                # written all the sketches
 
-                target = designpair
-                i_file = {'file': open(ipath, 'rb')}
-                img_skc_cut_file = {'file': open(img_skc_cut, 'rb')}
+            skt_filenames = filter(lambda name: name[-3:] in "jpg|png", os.listdir(op_folder))
+            des_filenames = filter(lambda name: name[-3:] in "jpg|png", os.listdir(eu_folder))
 
-                file_ids = get_file_ids(file_list=[i_file, img_skc_cut_file])
+            sktfileobjs = getfileobjs(op_folder, skt_filenames)
+            desfileobjs = getfileobjs(eu_folder, des_filenames)
+            target = designpair
 
-                print "processing photo"
-                photo_result = query_api(image_ids=file_ids[0])
+            skfileids = get_file_ids(file_list=sktfileobjs)
+            dsfileids = get_file_ids(file_list=desfileobjs)
 
-                print "processing sktchs"
-                img_skc_cut_result = query_api(image_ids=file_ids[1])
+            print "processing photo"
+            photo_result = query_api(image_ids=dsfileids)
 
-                print "processing tgthr"
-                img_img_skc_cut_tg = query_api(image_ids=[file_ids[0], file_ids[1]])
+            print "processing sktchs"
+            sketch_result = query_api(image_ids=skfileids)
 
-                results = [photo_result, img_skc_cut_result, img_img_skc_cut_tg]
-                results = fill_gaps(results)
+            print "processing tgthr"
+            tgethr_result = query_api(image_ids=dsfileids + skfileids)
 
-                op_file_path = os.path.join(INPUT_ROOT, op_file_name)
+            results = [photo_result, sketch_result, tgethr_result]
+            results = fill_gaps(results)
 
-                results_pickle_obj[file_name] = results
+            op_file_path = os.path.join(INPUT_ROOT, op_file_name)
 
-                with open(op_file_path, 'a') as f:
-                    f.write("Processing {}\n".format(file_name))
-                    for i, r in enumerate(results):
-                        f.write("case {} : {}\n".format(i, r))
+            results_pickle_obj[designpair] = results
+
+            with open(op_file_path, 'a') as f:
+                f.write("Processing {}\n".format(designpair))
+                for i, r in enumerate(results):
+                    f.write("case {} : {}\n".format(i, r))
 
     if not os.path.isfile(op_pkl_path):
         with open(op_pkl_path, 'wb') as fileobj:
