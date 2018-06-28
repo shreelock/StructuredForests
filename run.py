@@ -221,14 +221,19 @@ if __name__ == '__main__':
         model.train(bsds500_train(train_images_root))
 
         for designpair in sorted(os.listdir(INPUT_ROOT)):
-            if designpair[0] == '.': continue
+            if designpair[0] == '.' or "txt" in designpair : continue
             # input folders
             usid, euid = designpair.split(":")
             us_folder = os.path.join(INPUT_ROOT, designpair, usid)  # ground truths
             eu_folder = os.path.join(INPUT_ROOT, designpair, euid)  # sketches
 
             op_folder = os.path.join(INPUT_ROOT, designpair, "output")
-            if not os.path.exists(op_folder): os.makedirs(op_folder)
+            if not os.path.exists(op_folder):
+                os.makedirs(op_folder)
+                print "{} doing".format(designpair)
+            else:
+                print "{} already done".format(designpair)
+                continue
 
             file_names = filter(lambda name: name[-3:] in "jpg|png", os.listdir(eu_folder))
             for file_name in sorted(file_names):
@@ -282,4 +287,4 @@ if __name__ == '__main__':
         with open(op_pkl_path, 'wb') as fileobj:
             pickle.dump(results_pickle_obj, fileobj)
 
-    # plot_results(op_pkl_path)
+    plot_results(op_pkl_path)
