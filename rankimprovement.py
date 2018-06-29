@@ -43,7 +43,7 @@ options = {
 }
 
 
-def process_results(req, results, db_rank):
+def process_results(req, results, db_rank, target):
     found = False
     if req.status_code == 200:
         resp = json.loads(req.content)
@@ -62,7 +62,7 @@ def process_results(req, results, db_rank):
     return found, results, db_rank
 
 
-def fetch_results(results, db_count, image_ids=None, search_id=None, pg_num=None):
+def fetch_results(results, db_count, image_ids=None, search_id=None, pg_num=None, targetids=None):
     if image_ids:
         values = {'user': USER, 'token': TOKEN, 'results_per_page': RESULTS_PP, 'image_boxes': json.dumps(image_ids)}
 
@@ -71,7 +71,7 @@ def fetch_results(results, db_count, image_ids=None, search_id=None, pg_num=None
         print "query first time - {0:.2f}s ".format(time.time() - apitime)
 
         search_id = json.loads(r.content)['tmv']['search_id']
-        found, vals, db_count = process_results(r, results, db_count)
+        found, vals, db_count = process_results(r, results, db_count, targetids)
     else:
         values = {'user': USER, 'token': TOKEN, 'search_id': search_id, 'page': pg_num, 'results_per_page': RESULTS_PP}
 
@@ -79,19 +79,19 @@ def fetch_results(results, db_count, image_ids=None, search_id=None, pg_num=None
         r = requests.post(API_SEARCH_URL, data=values)
         print "query subsq time - {0:.2f}s ".format(time.time() - apitime)
 
-        found, vals, db_count = process_results(r, results, db_count)
+        found, vals, db_count = process_results(r, results, db_count, targetids)
 
     return found, search_id, vals, db_count
 
 
-def query_api(image_ids):
+def query_api(image_ids, target):
     results = {}
-    found, search_id, results, db_count = fetch_results(results, db_count={'USD': 0, 'EUD': 0}, image_ids=image_ids)
+    found, search_id, results, db_count = fetch_results(results, db_count={'USD': 0, 'EUD': 0}, image_ids=image_ids, targetids = target)
 
     if not found:
         pg = 1
         while not found and pg < TOT_PAGES:
-            found, _, results, db_count = fetch_results(results, db_count=db_count, search_id=search_id, pg_num=pg)
+            found, _, results, db_count = fetch_results(results, db_count=db_count, search_id=search_id, pg_num=pg, targetids = target)
             pg += 1
     if found:
         print results
@@ -257,19 +257,18 @@ if __name__ == '__main__':
 
             sktfileobjs = getfileobjs(op_folder, skt_filenames)
             desfileobjs = getfileobjs(eu_folder, des_filenames)
-            target = designpair
 
             skfileids = get_file_ids(file_list=sktfileobjs)
             dsfileids = get_file_ids(file_list=desfileobjs)
 
             print "processing photo"
-            photo_result = query_api(image_ids=dsfileids)
+            photo_result = query_api(image_ids=dsfileids, target=designpair)
 
             print "processing sktchs"
-            sketch_result = query_api(image_ids=skfileids)
+            sketch_result = query_api(image_ids=skfileids, target=designpair)
 
             print "processing tgthr"
-            tgethr_result = query_api(image_ids=dsfileids + skfileids)
+            tgethr_result = query_api(image_ids=dsfileids + skfileids, target=designpair)
 
             results = [photo_result, sketch_result, tgethr_result]
             results = fill_gaps(results)
