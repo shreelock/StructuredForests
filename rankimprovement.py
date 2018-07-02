@@ -55,8 +55,8 @@ def process_results(req, results, db_rank, target):
             dataset = item['dataset'].encode('ascii')
             db_rank[dataset] += 1
             if id in target:
-                results[dataset] = (db_rank[dataset], cumu_rank, "{0:.5f}".format(score))
-                if len(results) == 2:
+                results[id] = (db_rank[dataset], cumu_rank, "{0:.5f}".format(score))
+                if len(results) == len(target.split(',')):
                     found = True
                     break
     return found, results, db_rank
@@ -223,7 +223,7 @@ if __name__ == '__main__':
         for designpair in sorted(os.listdir(INPUT_ROOT)):
             if designpair[0] == '.' or "txt" in designpair : continue
             # input folders
-            usid, euid = designpair.split(":")
+            usid, euid = designpair.split("|")
             us_folder = os.path.join(INPUT_ROOT, designpair, usid)  # ground truths
             eu_folder = os.path.join(INPUT_ROOT, designpair, euid)  # sketches
 
@@ -281,9 +281,9 @@ if __name__ == '__main__':
                 f.write("Processing {}\n".format(designpair))
                 for i, r in enumerate(results):
                     f.write("case {} : {}\n".format(i, r))
+    #
+    # if not os.path.isfile(op_pkl_path):
+    #     with open(op_pkl_path, 'wb') as fileobj:
+    #         pickle.dump(results_pickle_obj, fileobj)
 
-    if not os.path.isfile(op_pkl_path):
-        with open(op_pkl_path, 'wb') as fileobj:
-            pickle.dump(results_pickle_obj, fileobj)
-
-    plot_results(op_pkl_path)
+    # plot_results(op_pkl_path)
