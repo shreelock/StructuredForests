@@ -48,6 +48,7 @@ def process_results(req, results, db_rank, target):
     if req.status_code == 200:
         resp = json.loads(req.content)
         design_results = resp['tmv']['design_results']
+        print "parsing through results"
         for item in design_results:
             id = item['tm_id']
             cumu_rank = item['rank']
@@ -85,6 +86,7 @@ def fetch_results(results, db_count, image_ids=None, search_id=None, pg_num=None
 
 
 def query_api(image_ids, target):
+    print "querying from api"
     results = {}
     found, search_id, results, db_count = fetch_results(results, db_count={'USD': 0, 'EUD': 0}, image_ids=image_ids, targetids = target)
 

@@ -54,17 +54,26 @@ if __name__ == '__main__':
         otput_path = os.path.join(parent, op)
 
         ip_filenames = filter(lambda name: name[-3:] in "jpg|png", os.listdir(input_path))
+        print "getting infileobjs"
         infileobjs = getfileobjs(input_path, ip_filenames)
 
+        print "getting outfileobjs"
         op_filenames = filter(lambda name: name[-3:] in "jpg|png", os.listdir(otput_path))
         opfileobjs = getfileobjs(otput_path, op_filenames)
 
+        print "getting infileids"
         infileids = get_file_ids(file_list=infileobjs)
+
+        print "getting inresults"
         inresults = query_api(image_ids=infileids, target=targets)
 
+        print "getting opfileids"
         opfileids = get_file_ids(file_list=opfileobjs)
+
+        print "getting opresults"
         opresults = query_api(image_ids=opfileids + infileids, target=targets)
 
+        print "rest of the bookkeeping"
         # unioning the list elements to the set.
         keyset = set()
         keyset |= set(inresults.keys())
