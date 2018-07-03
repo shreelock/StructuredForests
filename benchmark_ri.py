@@ -93,6 +93,7 @@ if __name__ == '__main__':
         for k in final_results:
             print k, final_results[k][0], final_results[k][1]
             fi.write("{}\t{}\t{}\n".format(k, final_results[k][0], final_results[k][1]))
+        fi.close()
     with open(b_ri_pkl, 'wb') as pklobj:
         pickle.dump(full_results, pklobj)
 
