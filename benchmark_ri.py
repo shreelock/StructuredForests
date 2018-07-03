@@ -1,6 +1,7 @@
 import json
 import os
 from rankimprovement import getfileobjs, get_file_ids, query_api
+import pickle
 
 ROOT = "/Users/sshn/shreelock/tmv/9/findPairs/"
 IMGS_ROOT = os.path.join(ROOT, "selected-pairs")
@@ -39,7 +40,9 @@ if __name__ == '__main__':
     bm_file = ROOT + "benchmark.json"
     bm_mapping = getbenchmark_map(bm_file)
     b_ri = os.path.join(ROOT, 'benchmark_ri.txt')
-    for key in bm_mapping.keys():
+    b_ri_pkl = os.path.join(ROOT, 'benchmark_ri.pkl')
+    full_results = {}
+    for key in sorted(bm_mapping.keys()):
         print "Processing {}".format(key)
         us = key.split("|")[0]
         eu = key.split("|")[1]
@@ -74,8 +77,13 @@ if __name__ == '__main__':
             orank = opresults[k][0] if k in opresults else 500
             final_results[k] = (irank, orank)
 
+        full_results[key] = final_results
+
         fi = open(b_ri, 'a')
         fi.write("{}\n".format(key))
         for k in final_results:
             print k, final_results[k][0], final_results[k][1]
             fi.write("{}\t{}\t{}\n".format(k, final_results[k][0], final_results[k][1]))
+    with open(b_ri_pkl, 'wb') as pklobj:
+        pickle.dump(full_results, pklobj)
+

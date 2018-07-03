@@ -9,7 +9,7 @@ import cv2
 import pickle
 import matplotlib.pyplot as plt
 
-RESULTS_PP = 50
+RESULTS_PP = 100000
 TOT_PAGES = 10
 rand = np.random.RandomState(1)
 options = {
