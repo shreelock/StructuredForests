@@ -1,6 +1,6 @@
 import json
 import os
-from rankimprovement import getfileobjs, get_file_ids, query_api
+from rankimprovement import getfileobjs, get_file_ids, query_api, RESULTS_PP, TOT_PAGES
 import pickle
 
 ROOT = "/Users/sshn/shreelock/tmv/9/findPairs/"
@@ -73,8 +73,8 @@ if __name__ == '__main__':
 
         final_results = {}
         for k in keyset:
-            irank = inresults[k][0] if k in inresults else 500
-            orank = opresults[k][0] if k in opresults else 500
+            irank = inresults[k][0] if k in inresults else RESULTS_PP * TOT_PAGES
+            orank = opresults[k][0] if k in opresults else RESULTS_PP * TOT_PAGES
             final_results[k] = (irank, orank)
 
         full_results[key] = final_results
