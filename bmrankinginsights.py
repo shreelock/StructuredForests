@@ -7,19 +7,21 @@ from matplotlib import pyplot as plt
 
 
 def plothist(histlist, title):
+    matplotlib.rcParams['xtick.labelsize'] = 5
     poslis = histlist[np.where(histlist > 0)]
     bins = [0, 20, 50, 100, 500, 1000, 2000]
     y, x, _ = plt.hist(poslis, bins=bins, rwidth=0.8)
-    for i in range(len(y)): plt.text(x[i]*1.5, y[i] + .25, str(y[i]), color='blue', fontweight='bold')
-    plt.xticks(bins)
+    for i in range(len(y)): plt.text(x[i]*1.5, y[i] + .25, str(y[i]), color='blue')
+    plt.xticks(bins, rotation=90)
     plt.title("{} - improvement".format(title))
+    plt.tight_layout()
     plt.show()
 
     neglis = histlist[np.where(histlist < 0)]
     bins = [-2000, -1000, -500, -100, -50, -20, 0]
     y, x, _ = plt.hist(neglis, bins=bins, rwidth=0.8)
-    for i in range(len(y)): plt.text(x[i]*1.5, y[i] + .25, str(y[i]), color='blue', fontweight='bold')
-    plt.xticks(bins)
+    for i in range(len(y)): plt.text(x[i]*1.5, y[i] + .25, str(y[i]), color='blue')
+    plt.xticks(bins, rotation=90)
     plt.title("{} - decrement".format(title))
     plt.show()
 
