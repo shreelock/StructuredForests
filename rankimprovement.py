@@ -43,11 +43,17 @@ options = {
 }
 
 
+def all_res_processed(db_cnt, tot_res):
+    return tot_res == sum(db_cnt.values())
+
+
 def process_results(req, results, db_rank, target):
     found = False
+    total_results_posbl = 0
     if req.status_code == 200:
         resp = json.loads(req.content)
         design_results = resp['tmv']['design_results']
+        total_results_posbl = resp['tmv']['design_result_count']
         print "parsing through results"
         for item in design_results:
             id = item['tm_id']
@@ -60,7 +66,7 @@ def process_results(req, results, db_rank, target):
                 if len(results) == len(target.split(',')):
                     found = True
                     break
-    return found, results, db_rank
+    return found, results, db_rank, total_results_posbl
 
 
 def fetch_results(results, db_count, image_ids=None, search_id=None, pg_num=None, targetids=None):
@@ -72,7 +78,7 @@ def fetch_results(results, db_count, image_ids=None, search_id=None, pg_num=None
         print "query first time - {0:.2f}s ".format(time.time() - apitime)
 
         search_id = json.loads(r.content)['tmv']['search_id']
-        found, vals, db_count = process_results(r, results, db_count, targetids)
+        found, vals, db_count, tot_res_posbl = process_results(r, results, db_count, targetids)
     else:
         values = {'user': USER, 'token': TOKEN, 'search_id': search_id, 'page': pg_num, 'results_per_page': RESULTS_PP}
 
@@ -80,20 +86,20 @@ def fetch_results(results, db_count, image_ids=None, search_id=None, pg_num=None
         r = requests.post(API_SEARCH_URL, data=values)
         print "query subsq time - {0:.2f}s ".format(time.time() - apitime)
 
-        found, vals, db_count = process_results(r, results, db_count, targetids)
+        found, vals, db_count, tot_res_posbl = process_results(r, results, db_count, targetids)
 
-    return found, search_id, vals, db_count
+    return found, search_id, vals, db_count, tot_res_posbl
 
 
 def query_api(image_ids, target):
     print "querying from api"
     results = {}
-    found, search_id, results, db_count = fetch_results(results, db_count={'USD': 0, 'EUD': 0}, image_ids=image_ids, targetids = target)
+    found, search_id, results, db_count, tot_res_psbl = fetch_results(results, db_count={'USD': 0, 'EUD': 0}, image_ids=image_ids, targetids=target)
 
-    if not found:
+    if not found and not all_res_processed(db_cnt=db_count, tot_res=tot_res_psbl):
         pg = 1
-        while not found and pg < TOT_PAGES:
-            found, _, results, db_count = fetch_results(results, db_count=db_count, search_id=search_id, pg_num=pg, targetids = target)
+        while not found and pg < TOT_PAGES and not all_res_processed(db_cnt=db_count, tot_res=tot_res_psbl):
+            found, _, results, db_count, tot_res_psbl = fetch_results(results, db_count=db_count, search_id=search_id, pg_num=pg, targetids=target)
             pg += 1
     if found:
         print results
@@ -223,7 +229,7 @@ if __name__ == '__main__':
         model.train(bsds500_train(train_images_root))
 
         for designpair in sorted(os.listdir(INPUT_ROOT)):
-            if designpair[0] == '.' or "txt" in designpair : continue
+            if designpair[0] == '.' or "txt" in designpair: continue
             # input folders
             usid, euid = designpair.split("|")
             us_folder = os.path.join(INPUT_ROOT, designpair, usid)  # ground truths
