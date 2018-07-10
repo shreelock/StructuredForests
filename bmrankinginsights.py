@@ -8,21 +8,27 @@ from matplotlib import pyplot as plt
 
 def plothist(histlist, title):
     matplotlib.rcParams['xtick.labelsize'] = 5
-    poslis = histlist[np.where(histlist > 0)]
-    bins = [0, 1, 20, 50, 100, 500, 1000, 2000]
-    y, x, _ = plt.hist(poslis, bins=bins, rwidth=0.8)
-    for i in range(len(y)): plt.text(x[i]*1.5, y[i] + .25, "{}, {}".format(x[i],y[i]), color='blue')
-    plt.xticks(bins, rotation=90)
-    plt.title("{} - improvement".format(title))
-    plt.tight_layout()
-    plt.show()
+    histlist = [-5000 if x < -5000 else x for x in histlist]
+    histlist = [5000 if x > 5000 else x for x in histlist]
+    std_bins = [-5000, -2000, -1000, -500, -100, -50, -20, -1, 0, 1, 20, 50, 100, 500, 1000, 2000, 5000]
 
-    neglis = histlist[np.where(histlist < 0)]
-    bins = [-2000, -1000, -500, -100, -50, -20, -1, 0]
-    y, x, _ = plt.hist(neglis, bins=bins, rwidth=0.8)
-    for i in range(len(y)): plt.text(x[i]*1.5, y[i] + .25, str(y[i]), color='blue')
-    plt.xticks(bins, rotation=90)
-    plt.title("{} - decrement".format(title))
+    leastval, maxval = min(histlist), max(histlist)
+    bins = [leastval]
+    for b in std_bins:
+        if leastval < b < maxval:
+            bins.append(b)
+    bins.append(maxval)
+
+    y, x = np.histogram(histlist, bins=bins)
+    x_line = np.arange(len(y))
+    binranges = []
+    for i in range(len(y)):
+        binranges.append("({},{})".format(x[i], x[i + 1]))
+    plt.bar(x_line, y, align='center', alpha=0.5)
+    for i in range(len(y)): plt.text(i, y[i] + .25, y[i], color='blue')
+    plt.xticks(x_line, binranges, rotation=45)
+    plt.title("{} - plot".format(title))
+    plt.tight_layout()
     plt.show()
 
 
@@ -36,21 +42,21 @@ if __name__ == '__main__':
     simlr_us = []
     simlr_eu = []
 
-    exact_us_nf_g = []
-    exact_us_nf_b = []
-    exact_us_nf_nr = []
-
-    exact_eu_nf_g = []
-    exact_eu_nf_b = []
-    exact_eu_nf_nr = []
-
-    simlr_eu_nf_g = []
-    simlr_eu_nf_b = []
-    simlr_eu_nf_nr = []
-
-    simlr_us_nf_g = []
-    simlr_us_nf_b = []
-    simlr_us_nf_nr = []
+    # exact_us_nf_g = []
+    # exact_us_nf_b = []
+    # exact_us_nf_nr = []
+    #
+    # exact_eu_nf_g = []
+    # exact_eu_nf_b = []
+    # exact_eu_nf_nr = []
+    #
+    # simlr_eu_nf_g = []
+    # simlr_eu_nf_b = []
+    # simlr_eu_nf_nr = []
+    #
+    # simlr_us_nf_g = []
+    # simlr_us_nf_b = []
+    # simlr_us_nf_nr = []
 
     for orig_pair in res.keys():
         usid = orig_pair.split("|")[0].strip()
@@ -58,58 +64,58 @@ if __name__ == '__main__':
         for id in res[orig_pair].keys():
             irank, orank = res[orig_pair][id]
 
-            if irank == 1000000 or orank == 1000000:
-                nf_res_pair = (orig_pair, id, irank, orank)
-                if id == usid:
-                    if irank > orank:
-                        exact_us_nf_g.append(nf_res_pair)
-                    elif orank > irank:
-                        exact_us_nf_b.append(nf_res_pair)
-                    else:
-                        exact_us_nf_nr.append(nf_res_pair)
-                elif id == euid:
-                    if irank > orank:
-                        exact_eu_nf_g.append(nf_res_pair)
-                    elif orank > irank:
-                        exact_eu_nf_b.append(nf_res_pair)
-                    else:
-                        exact_eu_nf_nr.append(nf_res_pair)
+            # if irank == 1000000 or orank == 1000000:
+            #     nf_res_pair = (orig_pair, id, irank, orank)
+            #     if id == usid:
+            #         if irank > orank:
+            #             exact_us_nf_g.append(nf_res_pair)
+            #         elif orank > irank:
+            #             exact_us_nf_b.append(nf_res_pair)
+            #         else:
+            #             exact_us_nf_nr.append(nf_res_pair)
+            #     elif id == euid:
+            #         if irank > orank:
+            #             exact_eu_nf_g.append(nf_res_pair)
+            #         elif orank > irank:
+            #             exact_eu_nf_b.append(nf_res_pair)
+            #         else:
+            #             exact_eu_nf_nr.append(nf_res_pair)
+            #     else:
+            #         if id[0] == 'D':
+            #             if irank > orank:
+            #                 simlr_us_nf_g.append(nf_res_pair)
+            #             elif orank > irank:
+            #                 simlr_us_nf_b.append(nf_res_pair)
+            #             else:
+            #                 simlr_us_nf_nr.append(nf_res_pair)
+            #         else:
+            #             if irank > orank:
+            #                 simlr_eu_nf_g.append(nf_res_pair)
+            #             elif orank > irank:
+            #                 simlr_eu_nf_b.append(nf_res_pair)
+            #             else:
+            #                 simlr_eu_nf_nr.append(nf_res_pair)
+            # else:  # none of the items "not found"
+            rank_diff = irank - orank
+            if id == usid:
+                exact_us.append(rank_diff)
+            elif id == euid:
+                exact_eu.append(rank_diff)
+            else:
+                if id[0] == 'D':
+                    simlr_us.append(rank_diff)
                 else:
-                    if id[0] == 'D':
-                        if irank > orank:
-                            simlr_us_nf_g.append(nf_res_pair)
-                        elif orank > irank:
-                            simlr_us_nf_b.append(nf_res_pair)
-                        else:
-                            simlr_us_nf_nr.append(nf_res_pair)
-                    else:
-                        if irank > orank:
-                            simlr_eu_nf_g.append(nf_res_pair)
-                        elif orank > irank:
-                            simlr_eu_nf_b.append(nf_res_pair)
-                        else:
-                            simlr_eu_nf_nr.append(nf_res_pair)
-            else:  # none of the items "not found"
-                rank_diff = irank - orank
-                if id == usid:
-                    exact_us.append(rank_diff)
-                elif id == euid:
-                    exact_eu.append(rank_diff)
-                else:
-                    if id[0] == 'D':
-                        simlr_us.append(rank_diff)
-                    else:
-                        simlr_eu.append(rank_diff)
+                    simlr_eu.append(rank_diff)
 
     # processing now.
     # processing exacts
     exact_us = np.array(exact_us)
-    exact_us_nf_g = np.array(exact_us_nf_g)
-    exact_us_nf_b = np.array(exact_us_nf_b)
+    # exact_us_nf_g = np.array(exact_us_nf_g)
+    # exact_us_nf_b = np.array(exact_us_nf_b)
 
-    total_us_improvement = np.sum(exact_us > 0) + len(exact_us_nf_g)
-    total_us_same = np.sum(exact_us == 0) + len(exact_us_nf_nr)
-    total_us_decerment = np.sum(exact_us < 0) + len(exact_us_nf_b)
+    total_us_improvement = np.sum(exact_us > 0)  # + len(exact_us_nf_g)
+    total_us_same = np.sum(exact_us == 0)  # + len(exact_us_nf_nr)
+    total_us_decerment = np.sum(exact_us < 0)  # + len(exact_us_nf_b)
 
     print "EXACT US : tot : {}, tot-impr : {}, tot-same : {}, tot-decr : {}".format(
         total_us_improvement + total_us_same +
@@ -121,24 +127,24 @@ if __name__ == '__main__':
 
     # processing similars
     simlr_us = np.array(simlr_us)
-    simlr_us_nf_g = np.array(simlr_us_nf_g)
-    simlr_us_nf_b = np.array(simlr_us_nf_b)
+    # simlr_us_nf_g = np.array(simlr_us_nf_g)
+    # simlr_us_nf_b = np.array(simlr_us_nf_b)
 
-    total_us_improvement_sm = np.sum(simlr_us > 0) + len(simlr_us_nf_g)
-    total_us_same_sm = np.sum(simlr_us == 0) + len(simlr_us_nf_nr)
-    total_us_decerment_sm = np.sum(simlr_us < 0) + len(simlr_us_nf_b)
+    total_us_improvement_sm = np.sum(simlr_us > 0)  # + len(simlr_us_nf_g)
+    total_us_same_sm = np.sum(simlr_us == 0)  # + len(simlr_us_nf_nr)
+    total_us_decerment_sm = np.sum(simlr_us < 0)  # + len(simlr_us_nf_b)
 
     print "SIMLR US : tot : {}, tot-impr : {}, tot-same : {}, tot-decr : {}".format(
         total_us_improvement_sm + total_us_same_sm + total_us_decerment_sm, total_us_improvement_sm, total_us_same_sm,
         total_us_decerment_sm)
 
     simlr_eu = np.array(simlr_eu)
-    simlr_eu_nf_g = np.array(simlr_eu_nf_g)
-    simlr_eu_nf_b = np.array(simlr_eu_nf_b)
+    # simlr_eu_nf_g = np.array(simlr_eu_nf_g)
+    # simlr_eu_nf_b = np.array(simlr_eu_nf_b)
 
-    total_eu_improvement_sm = np.sum(simlr_eu > 0) + len(simlr_eu_nf_g)
-    total_eu_same_sm = np.sum(simlr_eu == 0) + len(simlr_eu_nf_nr)
-    total_eu_decerment_sm = np.sum(simlr_eu < 0) + len(simlr_eu_nf_b)
+    total_eu_improvement_sm = np.sum(simlr_eu > 0)  # + len(simlr_eu_nf_g)
+    total_eu_same_sm = np.sum(simlr_eu == 0)  # + len(simlr_eu_nf_nr)
+    total_eu_decerment_sm = np.sum(simlr_eu < 0)  # + len(simlr_eu_nf_b)
 
     print "SIMLR EU : tot : {}, tot-impr : {}, tot-same : {}, tot-decr : {}".format(
         total_eu_improvement_sm + total_eu_same_sm + total_eu_decerment_sm, total_eu_improvement_sm, total_eu_same_sm,
