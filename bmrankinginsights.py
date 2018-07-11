@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 
 
 def plothist(histlist, title):
-    matplotlib.rcParams['xtick.labelsize'] = 5
+    matplotlib.rcParams['xtick.labelsize'] = 8
     histlist = [-5000 if x < -5000 else x for x in histlist]
     histlist = [5000 if x > 5000 else x for x in histlist]
     std_bins = [-5000, -2000, -1000, -500, -100, -50, -20, -1, 0, 1, 20, 50, 100, 500, 1000, 2000, 5000]
