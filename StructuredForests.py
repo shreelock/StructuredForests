@@ -535,7 +535,7 @@ def bsds500_test(model, input_root, output_root):
     print
 
 
-def test_single_image(model, opath=None, img_path=None, img=None):
+def test_single_image(model, out_path=None, img_path=None, img=None):
     from skimage import img_as_float, img_as_ubyte
     from skimage.io import imread, imsave
 
@@ -575,8 +575,8 @@ def test_single_image(model, opath=None, img_path=None, img=None):
     # cv2.imshow("1", edge)
     # cv2.waitKey(11)
 
-    if opath is not None:
-        imsave(opath, edge)
+    if out_path is not None:
+        imsave(out_path, edge)
 
     return edge
 

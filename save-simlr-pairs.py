@@ -28,29 +28,28 @@ if __name__ == '__main__':
         euid = b.split('|')[1].strip()
         similar_ids = bm_mapping[b].split(',')
 
-        usurls = requests.get(API_ROOT + USD + "/" + usid).content.split(',')
-        euurls = requests.get(API_ROOT + EUD + "/" + euid).content.split(',')
+        bpath = os.path.join(ROOT, "similar-samples", b)
+        if not os.path.exists(bpath):
+            os.mkdir(bpath)
+        else: continue
+        os.mkdir(os.path.join(bpath, 'us'))
+        os.mkdir(os.path.join(bpath, 'eu'))
+        os.mkdir(os.path.join(bpath, 'sim'))
+
+        usurls = requests.get(API_ROOT + USD + usid).content.split(',')
+        euurls = requests.get(API_ROOT + EUD + euid).content.split(',')
         simurls = []
         for sim in similar_ids:
             if sim[0] == 'D':
-                simu = requests.get(API_ROOT + USD + "/" + sim).content.split(',')
+                simu = requests.get(API_ROOT + USD + sim).content.split(',')
                 for u in simu:
                     simurls.append(u)
             else:
-                simu = requests.get(API_ROOT + EUD + "/" + sim).content.split(',')
+                simu = requests.get(API_ROOT + EUD + sim).content.split(',')
                 for u in simu:
                     simurls.append(u)
 
         print "For mapping {}".format(b)
-        print usurls
-        print euurls
-        print simurls
-
-        bpath = os.path.join(ROOT, "similar-samples", b)
-        os.mkdir(bpath)
-        os.mkdir(os.path.join(bpath, 'us'))
-        os.mkdir(os.path.join(bpath, 'eu'))
-        os.mkdir(os.path.join(bpath, 'sim'))
 
         for idx, url in enumerate(usurls):
             i = requests.get(url, stream=True)

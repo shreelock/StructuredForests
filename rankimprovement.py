@@ -69,9 +69,9 @@ def process_results(req, results, db_rank, target):
     return found, results, db_rank, total_results_posbl
 
 
-def fetch_results(results, db_count, image_ids=None, search_id=None, pg_num=None, targetids=None):
-    if image_ids:
-        values = {'user': USER, 'token': TOKEN, 'results_per_page': RESULTS_PP, 'image_boxes': json.dumps(image_ids)}
+def fetch_results(results, db_count, image_boxes=None, search_id=None, pg_num=None, targetids=None):
+    if image_boxes:
+        values = {'user': USER, 'token': TOKEN, 'results_per_page': RESULTS_PP, 'image_boxes': json.dumps(image_boxes)}
 
         apitime = time.time()
         r = requests.post(API_SEARCH_URL, data=values)
@@ -91,30 +91,23 @@ def fetch_results(results, db_count, image_ids=None, search_id=None, pg_num=None
     return found, search_id, vals, db_count, tot_res_posbl
 
 
-def query_api(image_ids, target):
+def query_api(image_boxes, target):
     print "querying from api"
     results = {}
-    found, search_id, results, db_count, tot_res_psbl = fetch_results(results, db_count={'USD': 0, 'EUD': 0}, image_ids=image_ids, targetids=target)
+    found, search_id, results, db_count, tot_res_psbl = fetch_results(results, db_count={'USD': 0, 'EUD': 0},
+                                                                      image_boxes=image_boxes, targetids=target)
 
     if not found and not all_res_processed(db_cnt=db_count, tot_res=tot_res_psbl):
         pg = 1
         while not found and pg < TOT_PAGES and not all_res_processed(db_cnt=db_count, tot_res=tot_res_psbl):
-            found, _, results, db_count, tot_res_psbl = fetch_results(results, db_count=db_count, search_id=search_id, pg_num=pg, targetids=target)
+            found, _, results, db_count, tot_res_psbl = fetch_results(results, db_count=db_count, search_id=search_id,
+                                                                      pg_num=pg, targetids=target)
             pg += 1
     if found:
         print results
     else:
         print results, "not found in {} results".format(TOT_PAGES * RESULTS_PP)
     return results
-
-
-def get_file_ids(file_list):
-    file_ids = []
-    for f in file_list:
-        r = requests.post(url=API_SEGMENT_URL, files=f, data={'user': USER, 'token': TOKEN})
-        resp = json.loads(r.content)
-        file_ids.append({"image_id": resp['image_id']})
-    return file_ids
 
 
 def fill_gaps(items):
@@ -127,21 +120,19 @@ def fill_gaps(items):
     return items
 
 
-def get_object_polygon(file_path):
-    f = {'file': open(file_path, 'rb')}
-    r = requests.post(url=API_SEGMENT_URL, files=f, data={'user': USER, 'token': TOKEN})
+def get_image_info(file_path):
+    fobj = {'file': open(file_path, 'rb')}
+    r = requests.post(url=API_SEGMENT_URL, files=fobj, data={'user': USER, 'token': TOKEN})
     resp = json.loads(r.content)
     segments = resp['segments']
     poly = []
-    ppoly = []
     for s in segments:
         if s['segment_type'] == 'default_poly':
             poly = s['polygon']
             break
-    for pt in poly:
-        ppoly.append((pt[0], pt[1]))
 
-    return ppoly
+    image_id = resp['image_id']
+    return image_id, poly
 
 
 def cutfrompoly(poly, img=None, img_path=None):
@@ -208,13 +199,6 @@ def plot_results(results_pickle):
     pass
 
 
-def getfileobjs(parent, filenames):
-    objs = []
-    for fname in filenames:
-        objs.append({'file': open(os.path.join(parent, fname), 'rb')})
-    return objs
-
-
 if __name__ == '__main__':
     op_file_name = sys.argv[1]
     op_pickle_file = sys.argv[1] + ".pkl"
@@ -244,39 +228,36 @@ if __name__ == '__main__':
                 continue
 
             file_names = filter(lambda name: name[-3:] in "jpg|png", os.listdir(eu_folder))
+            imgboxes = []
+            sktboxes = []
             for file_name in sorted(file_names):
                 print "processing {}".format(file_name)
 
                 ipath = os.path.join(eu_folder, file_name)
-                img_skc_cut = os.path.join(op_folder, file_name[:-4] + "-proc.png")
+                opath = os.path.join(op_folder, file_name[:-4] + "-proc.png")
 
-                poly = get_object_polygon(ipath)
-
-                # Image, Cut Sketch
                 model_start_time = time.time()
                 edge = test_single_image(model, img_path=ipath)
                 print "fwd pass - {0:.2f}s ".format(time.time() - model_start_time)
+
+                iimg_id, poly = get_image_info(ipath)
+                ijson = {"image_id": iimg_id, "polygon": poly}
+                imgboxes.append(ijson)
+
                 cutedge = cutfrompoly(poly, img=edge)
-                cv2.imwrite(img_skc_cut, cutedge)
-                # written all the sketches
-
-            skt_filenames = filter(lambda name: name[-3:] in "jpg|png", os.listdir(op_folder))
-            des_filenames = filter(lambda name: name[-3:] in "jpg|png", os.listdir(eu_folder))
-
-            sktfileobjs = getfileobjs(op_folder, skt_filenames)
-            desfileobjs = getfileobjs(eu_folder, des_filenames)
-
-            skfileids = get_file_ids(file_list=sktfileobjs)
-            dsfileids = get_file_ids(file_list=desfileobjs)
+                cv2.imwrite(opath, cutedge)
+                oimg_id, _ = get_image_info(opath)
+                ojson = {"image_id": oimg_id, "polygon": poly}
+                sktboxes.append(ojson)
 
             print "processing photo"
-            photo_result = query_api(image_ids=dsfileids, target=designpair)
+            photo_result = query_api(image_boxes=imgboxes, target=designpair)
 
             print "processing sktchs"
-            sketch_result = query_api(image_ids=skfileids, target=designpair)
+            sketch_result = query_api(image_boxes=sktboxes, target=designpair)
 
             print "processing tgthr"
-            tgethr_result = query_api(image_ids=dsfileids + skfileids, target=designpair)
+            tgethr_result = query_api(image_boxes=imgboxes + sktboxes, target=designpair)
 
             results = [photo_result, sketch_result, tgethr_result]
             results = fill_gaps(results)
